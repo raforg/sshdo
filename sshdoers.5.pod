@@ -1,0 +1,477 @@
+# sshdo - controls which commands may be executed via incoming ssh
+#
+# Copyright (C) 2018 raf <raf@raf.org>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see https://www.gnu.org/licenses/.
+#
+# 20180808 raf <raf@raf.org>
+
+=head1 NAME
+
+C</etc/sshdoers> - configuration file for I<sshdo(8)>
+
+=head1 DESCRIPTION
+
+The C</etc/sshdoers> file configures I<sshdo(8)> and specifies the commands
+that are allowed to be executed via incoming I<ssh(1)> connections by users
+whose authorized keys force the use of the I<sshdo> command. The files in
+the C</etc/sshdoers.d/> directory specify additional allowed commands. Any
+file in that directory whose name starts with a dot character (C<".">) is
+ignored.
+
+=head1 FILE FORMAT
+
+The following sections describe the different types of line that make up the
+configuration files. There are comment lines and I<authorization>,
+I<training>, I<match>, I<syslog>, I<logfiles> and I<banner> directives. Any
+leading or trailing whitespace characters (e.g. C<" ">) are ignored.
+
+=head2 Comment
+
+Comment lines start with optional whitespace and a hash character (C<"#">).
+Comment lines and blank lines are ignored. Note that comments can't appear
+after any non-whitespace character because hash characters have special
+meaning in I<authorization> directives (see the next section).
+
+=head2 Authorization
+
+I<Authorization> directives specify which users and groups are allowed to
+execute which commands. They consist of one or more user names and/or group
+names, separated by whitespace, followed by optional whitespace, a colon
+character (C<":">), more optional whitespace, and a shell command.
+
+Group names are preceded by a plus sign (C<"+">). A user name can be
+preceded by a minus sign (C<"-">) to indicate that the user is not allowed
+to execute the command. These can be used together to allow most but not all
+members of a group to execute a command.
+
+A user name or group name can be followed by a forward slash character
+(C<"/">) and a label that identifies which of the user's authorized keys to
+allow. The label comes from I<sshdo>'s command line argument(s), if any, in
+the C<command=""> option in C<~/.ssh/authorized_keys> files (or in the
+C<ForceCommand> directives in C</etc/ssh/sshd_config>). The label will
+usually be something that identifies the remote owner of the authorized key.
+Each authorized key in a C<~/.ssh/authorized_keys> file would usually have a
+different label but this isn't required. If multiple keys in a user's
+C<~/.ssh/authorized_keys> file use the same label, or no label, then they
+will just be indistinguishable to I<sshdo> and they will all share the same
+I<authorization> directives. Labels might not be too useful when used with
+group names rather than user names but they are supported just in case.
+
+When user names or group names have no label, the I<authorization> directive
+applies to all of their authorized keys. It is recommended to consider using
+labels either for every key that uses I<sshdo> in a
+C<~/.ssh/authorized_keys> file or for none of them. If some keys have a
+label and others don't, then any I<authorization> directives that are
+intended for the key(s) with no label will also apply to any key(s) with a
+label. That might be desirable, depending on your requirements, but it might
+not be.
+
+The syntax of I<authorization> directives is:
+
+  AUTHORIZATION ::= ENTITY (" "+ ENTITY)* " "* ":" " "* COMMAND
+  ENTITY ::= USER | "+" GROUP | "-" USER
+  USER ::= username ("/" LABEL)?
+  GROUP ::= groupname ("/" LABEL)?
+  LABEL ::= short label with no whitespace or colons
+  COMMAND ::= shell command | "<interactive>" | BINARY
+  BINARY ::= "<binary>" " "* encoded shell command
+
+Example:
+
+  user1 user2/label +group3 -user3: cmd arg
+
+The above example states that I<user1> may execute the command, C<cmd arg>,
+for any authorized key. So may I<user2>, but only for the authorized key(s)
+whose C<command=""> option includes C<"label"> as the command line argument
+to I<sshdo> (i.e. C<command="/usr/bin/sshdo label">). Members of I<group3>
+may also execute the command but I<user3> may not, even if I<user3> is a
+member of I<group3>.
+
+Note that the shell command must specify the entire command. It is not just
+a prefix. The command can contain shell meta-characters. However, in the
+unlikely event that the command contains any leading or trailing whitespace
+characters (e.g. C<ssh user@host ' cmd arg '>), they are removed and so do
+not need to be included. All internal whitespace characters in the command
+are left intact and so do need to be included.
+
+There is no aliasing or macro substitution or line continuation. However,
+there is very limited pattern matching to represent commands that vary only
+in the digits that appear on the command line (e.g. sequence numbers or
+date/time stamps). Any single hash character (C<"#">) that appears in the
+shell command represents either a literal hash character or a string of one
+or more digit characters. Any string of two or more hash characters
+represents that exact same number of hash or digit characters. See the
+I<Match> section below for more detail.
+
+Also, in the unlikely event that the command contains any binary/unprintable
+characters, it must be specially encoded. It must start with
+C<"E<lt>binaryE<gt>"> followed by optional whitespace and the command with
+all binary/unprintable characters represented using hexadecimal notation
+(e.g. a newline character would be represented as C<"\x0a">). Also, all
+backslash characters (C<"\">) in the command must be quoted with a preceding
+backslash character. But when the command does not contain any
+binary/unprintable characters, this encoding is not necessary.
+
+If an incoming I<ssh> connection's requested command matches an
+I<authorization> directive in the configuration, it will be executed by
+passing it to the user's login shell as the argument to its C<-c> option
+(e.g. C<sh -c 'cmd arg'>). If an incoming I<ssh> connection has no requested
+command, then an interactive login is being requested. This is represented
+in the configuration and in log messages as C<"E<lt>interactiveE<gt>">. If
+allowed, the user's login shell will be executed as an interactive login
+shell (i.e. the first character of C<argv[0]> is the dash character
+(C<"-">), e.g. C<-sh>).
+
+=head2 Training
+
+I<Training> directives specify which users and groups are allowed to execute
+as yet unknown commands for the purpose of training I<sshdo>'s
+configuration. They consist of the word C<"training"> optionally followed by
+user names and/or group names, all separated by whitespace.
+
+Group names are preceded by a plus sign (C<"+">). A user name can be
+preceded by a minus sign (C<"-">) to indicate that the user is not to be put
+into training mode. These can be used together to put most but not all
+members of a group into training mode.
+
+A user name or group name can be followed by a forward slash character
+(C<"/">) and a label that identifies which of the user's authorized keys to
+put into training mode. See the I<Authorization> section above for details
+on labels.
+
+The syntax of I<training> directives is:
+
+  TRAINING ::= "training" (" "+ ENTITY)*
+  ENTITY ::= USER | "+" GROUP | "-" USER
+  USER ::= username ("/" LABEL)?
+  GROUP ::= groupname ("/" LABEL)?
+  LABEL ::= short label with no whitespace or colons
+
+Example:
+
+  training user1 user2/label +group3 -user3
+
+The above example states that I<user1> is in training mode for any
+authorized key. So is I<user2>, but only for the authorized key(s) whose
+C<command=""> option includes C<"label"> as the command line argument to
+I<sshdo> (i.e. C<command="/usr/bin/sshdo label">). Members of I<group3> are
+also in training mode but I<user3> is not, even if I<user3> is a member of
+I<group3>.
+
+If no user names or group names appear in a I<training> directive, then
+training mode applies globally to all users and keys. This is only
+recommended when first incorporating I<sshdo> into your I<ssh>
+infrastructure. Once I<sshdo> policy is established, training mode should
+only be turned on selectively when introducing new functionality for an
+existing key or when adding a new key to a user's C<~/.ssh/authorized_keys>
+file (unless you manually configure its allowed commands).
+
+In training mode, I<sshdo> will allow the execution of any command,
+including ones that aren't allowed in the configuration, but they will be
+logged with C<type="training"> rather than C<type="allowed"> or
+C<type="disallowed">. Note, however, that a command will still be disallowed
+and not executed for users who have been explicitly excluded from executing
+it (e.g. C<"-user: cmd arg>").
+
+This is useful for gathering the exact commands that are currently in use.
+For example, it's not at all obvious in advance which commands I<scp(1)> or
+I<rsync(1)> will require I<ssh> to execute. Training mode makes it possible
+to learn which commands need to be added to C</etc/sshdoers> or
+C</etc/sshdoers.d/> to keep a system functioning after I<sshdo> is
+incorporated into it to improve security. Of course, training mode should
+not be left in place long-term.
+
+Once training mode has been in place for long enough to capture all
+necessary activity, I<sshdo> can be invoked with the C<--learn> option to
+output the configuration that needs to be added to C</etc/sshdoers> or
+C</etc/sshdoers.d/> in order to allow the existing activity in future. Once
+that has been done, training mode can be turned off. Any disallowed commands
+encountered after that will not be executed.
+
+Also note that I<sshdo> can occasionally be invoked with the C<--unlearn>
+option to identify any I<authorization> directives that have not been used
+recently and so no longer seem to be needed. It will output a new candidate
+configuration that will contain the I<authorization> directives that are
+needed to continue to allow commands that are still in use but it will
+comment out any current I<authorization> directives that no longer seem to
+be needed. If correct, this new candidate configuration can be used to
+replace the I<authorization> directives in the current configuration to
+maintain strict least privilege.
+
+Note that a global I<training> directive with no user names or group names
+that applies to all users and keys may only appear in C</etc/sshdoers>, not
+in C</etc/sshdoers.d/*>. However, selective I<training> directives that only
+apply to the keys of particular users or groups may appear in either
+location. But it might be a good idea to keep all I<training> directives in
+C</etc/sshdoers> anyway.
+
+=head2 Match
+
+The I<match> directive specifies how hash characters (C<"#">) are to be
+interpreted in shell commands in I<authorization> directives. It also
+affects the patterns identified by I<sshdo>'s C<--learn> and C<--unlearn>
+options. It consists of the word C<"match"> followed by whitespace and one
+of the following values: C<"exact">, C<"digits"> or C<"hexdigits">. The
+default value is C<"digits">. Note that the I<match> directive may only
+appear in C</etc/sshdoers>, not in C</etc/sshdoers.d/*>. Also, there should
+only be one I<match> directive. If there is more than one, the last one
+takes effect.
+
+The value C<"exact"> causes hash characters to match literal hash characters
+only. The value C<"digits"> causes them to match literal hash characters or
+decimal digit characters (C<"0".."9">). The value C<"hexdigits"> causes them
+to match literal hash characters or hexadecimal digit characters
+(C<"0".."9">, C<"a".."f">, C<"A".."F">).
+
+With C<"exact"> matching, each hash character matches a single literal hash
+character. With C<"digits"> and C<"hexdigits"> matching, a single hash
+character matches either a single literal hash character or a string of one
+or more matched digit characters (i.e. decimal or hexadecimal digits,
+respectively), and any string of two or more hash characters matches that
+exact same number of literal hash characters or matched digit characters
+(each character can either be a hash character or a digit character).
+
+The syntax of the I<match> directive is:
+
+  MATCH ::= "match" " "+ METHOD
+  METHOD ::= "exact" | "digits" | "hexdigits"
+
+Examples:
+
+  match exact
+  match digits
+  match hexdigits
+
+=head2 Syslog
+
+The I<syslog> directive specifies which I<syslog(3)> facility to use for log
+messages. It consists of the word C<"syslog"> followed by whitespace and one
+of the following I<syslog> facility names: C<"auth">, C<"user">,
+C<"daemon">, C<"local0">, C<"local1">, C<"local2">, C<"local3">,
+C<"local4">, C<"local5">, C<"local6"> or C<"local7">. The default value is
+C<"auth">. Note that the I<syslog> directive may only appear in
+C</etc/sshdoers>, not in C</etc/sshdoers.d/*>. Also, there should only be
+one I<syslog> directive. If there is more than one, the last one takes
+effect.
+
+The syntax of the I<syslog> directive is:
+
+  SYSLOG ::= "syslog" " "+ FACILITY
+  FACILITY ::= "auth" | "user" | "daemon" | "local0" | "local1" |
+      "local2" | "local3" | "local4" | "local5" | "local6" | "local7"
+
+Examples:
+
+  syslog auth
+  syslog user
+  syslog daemon
+  syslog local0
+  syslog local1
+  syslog local2
+  syslog local3
+  syslog local4
+  syslog local5
+  syslog local6
+  syslog local7
+
+Note: Syntax errors in the configuration files are logged. The I<syslog>
+directive should appear near the top of the configuration file so that it
+takes effect before any syntax errors are likely to be encountered. But if
+I<sshdo>'s C<--check> option is always used to perform a syntax check
+whenever the configuration changes, this isn't important.
+
+Note: If the I<syslog> directive is used, then you will almost certainly
+have to use a I<logfiles> directive (see the next section), or specify the
+corresponding log files on the command line, when invoking I<sshdo> with the
+C<--learn> or C<--unlearn> option.
+
+=head2 Logfiles
+
+I<Logfiles> directives specify the file glob pattern(s) for locating the log
+files that contain I<sshdo> log messages. These log files will be the
+default log file locations for I<sshdo>'s C<--learn> and C<--unlearn>
+options. I<Logfiles> directives consist of the word C<"logfiles"> followed
+by one or more file glob patterns, all separated by whitespace. The default
+is C</var/log/auth.log*>. Log files can be uncompressed or
+I<gzip(1)>-compressed. The I<logfiles> argument can also be the dash
+character (C<"-">) which causes I<sshdo> to read log messages from standard
+input (C<stdin>) by default (although that probably isn't very useful). Note
+that I<logfiles> directives may only appear in C</etc/sshdoers>, not in
+C</etc/sshdoers.d/*>. There can be multiple I<logfiles> directives and they
+will all be used.
+
+Examples:
+
+  logfiles /var/log/auth.log*
+  logfiles /var/log/auth.log* /var/log/syslog*
+  logfiles /var/log/auth.log /var/log/auth.log.1 /var/log/auth.log.?.gz
+
+=head2 Banner
+
+The I<banner> directive specifies the path of a file whose contents are to
+be output to standard error (C<stderr>) for I<ssh> clients whose commands
+are disallowed and not executed. It consists of the word C<"banner">
+followed by whitespace and a file path. This can be used to inform clients
+that their command failed due to I<sshdo>'s configuration rather than just
+silently refusing to execute the command. Note that the I<banner> directive
+may only appear in C</etc/sshdoers>, not in C</etc/sshdoers.d/*>. Also,
+there should only be one I<banner> directive. If there is more than one, the
+last one takes effect.
+
+Example:
+
+  banner /etc/sshdo.banner
+
+The default banner file contains the message:
+
+  Access denied by sshdo policy.
+
+But note that the default banner file is not used unless the I<banner>
+directive is uncommented.
+
+=head1 EXAMPLE
+
+  # /etc/sshdoers: Configure sshdo and specify the commands that
+  # are allowed via incoming ssh connections where authorized
+  # keys include command="/usr/bin/sshdo" or where a ForceCommand
+  # directive in /etc/ssh/sshd_config specifies /usr/bin/sshdo.
+  #
+  # See the manual pages sshdo(8) and sshdoers(5) for details.
+
+  # Change the syslog facility for log messages, if necessary.
+  # The default is "auth".
+  #
+  # syslog auth
+  # syslog user
+  # syslog daemon
+  # syslog local0
+  # syslog local1
+  # syslog local2
+  # syslog local3
+  # syslog local4
+  # syslog local5
+  # syslog local6
+  # syslog local7
+
+  # Change the default log files glob pattern(s) for the --learn
+  # and --unlearn options, if necessary.
+  #
+  # logfiles /var/log/auth.log*
+
+  # Uncomment the banner directive and modify the banner file, if
+  # necessary, to output its contents to standard error (stderr)
+  # for ssh clients whose commands are disallowed and not executed.
+  #
+  # banner /etc/sshdo.banner
+
+  # Change which characters are matched by hash characters ("#")
+  # in shell commands in authorization directives, if necessary.
+  # The default is "digits".
+  #
+  # match exact
+  # match digits
+  # match hexdigits
+
+  # Turn on training mode to allow but log unexpected commands either
+  # for all users and keys (i.e. "training") or for particular users
+  # and keys (e.g. "training user1 user2/label +group3 -user3").
+  #
+  # training
+
+  # Add command authorization directives here or in /etc/sshdoers.d/*
+  # (e.g. "user1 user2/label +group3 -user3: cmd arg").
+
+=head1 SUGGESTION
+
+It might be a good idea to only use C</etc/sshdoers> for the configuration
+directives that can only appear in that file (i.e. I<syslog>, I<logfiles>,
+I<banner>, I<match> and global I<training> directives) and any selective
+I<training> directives, and to use files in C</etc/sshdoers.d/> for
+I<authorization> directives that allow users to execute commands.
+
+If all I<authorization> directives are the result of I<sshdo>'s C<--learn>
+and C<--unlearn> options, this would mean that the manual configuration is
+placed in C</etc/sshdoers> and the semi-automatic configuration is kept
+separate in one or more files in C</etc/sshdoers.d/>.
+
+After training mode has been in place to gather new or existing
+functionality that needs to be allowed, the corresponding new
+I<authorization> directives can be added to the configuration with something
+like:
+
+  # sshdo --learn > /etc/sshdoers.d/.learned
+  # vim /etc/sshdoers.d/.learned # Verify that it is correct
+  # sshdo --check /etc/sshdoers.d/.learned
+  /etc/sshdoers.d/.learned syntax OK
+  # cat /etc/sshdoers.d/.learned >> /etc/sshdoers.d/learned
+  # rm /etc/sshdoers.d/.learned
+
+Occasionally, any I<authorization> directives that are no longer in use can
+be removed from the configuration with something like:
+
+  # sshdo --unlearn --accepting > /etc/sshdoers.d/.learned
+  # vim /etc/sshdoers.d/.learned # Verify that it is correct
+  # sshdo --check /etc/sshdoers.d/.learned
+  /etc/sshdoers.d/.learned syntax OK
+  # mv /etc/sshdoers.d/.learned /etc/sshdoers.d/learned
+
+=head1 CAVEAT
+
+If there are any errors in the configuration files, I<sshdo> will ignore
+them and carry on. This is to avoid being too brittle. But of course, it
+would still be a problem. If any user names or group names were mistyped,
+for example, then some commands that should be allowed would be disallowed.
+A complete failure to read the configuration files would mean that all
+commands would be disallowed. To avoid these problems, always make changes
+to a copy of the configuration and then use I<sshdo>'s C<--check> option to
+check the syntax of the copy before installing it as the new configuration.
+And test the new configuration after installing it.
+
+Also make sure that the users with C<~/.ssh/authorized_keys> files that use
+I<sshdo> have permission to read the configuration files. If you don't want
+the configuration files to be world-readable, add the affected users to a
+new group (e.g. C<sshdoers>) and make the configuration files readable by
+that group, and make sure that I<sshdo> log messages are only written to log
+files that are not world-readable because any configuration directives that
+contain a syntax error will be logged. Be aware that log messages might be
+written to multiple log files. Check the configuration of your
+I<syslogd(8)>-compatible logging service for details. But if I<sshdo>'s
+C<--check> option is always used to perform a syntax check whenever the
+configuration changes, this isn't important.
+
+=head1 FILES
+
+=over 4
+
+=item C</etc/sshdoers> - configures I<sshdo(8)> and specifies allowed commands.
+
+=item C</etc/sshdoers.d/*> - specifies additional allowed commands.
+
+=item C<~/.ssh/authorized_keys> - has I<ssh> keys with C<command="/usr/bin/sshdo">.
+
+=item C</var/log/auth.log> - possible default destination for I<syslog> messages.
+
+=back
+
+=head1 SEE ALSO
+
+I<sshdo(8)>, I<ssh(1)>, I<sshd(8)>, I<sshd_config(5)>, I<syslog(3)>,
+I<syslogd(8)>, I<logrotate(8)>, I<RFC 5424>.
+
+=head1 AUTHOR
+
+raf <raf@raf.org>
+
+=cut

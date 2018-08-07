@@ -1,0 +1,50 @@
+# /etc/sshdoers: Configure sshdo and specify the commands that
+# are allowed via incoming ssh connections where authorized
+# keys include command="/usr/bin/sshdo" or where a ForceCommand
+# directive in /etc/ssh/sshd_config specifies /usr/bin/sshdo.
+#
+# See the manual pages sshdo(8) and sshdoers(5) for details.
+
+# Change the syslog facility for log messages, if necessary.
+# The default is "auth".
+#
+# syslog auth
+# syslog user
+# syslog daemon
+# syslog local0
+# syslog local1
+# syslog local2
+# syslog local3
+# syslog local4
+# syslog local5
+# syslog local6
+# syslog local7
+
+# Change the default log files glob pattern(s) for the --learn
+# and --unlearn options, if necessary.
+#
+# logfiles /var/log/auth.log*
+
+# Uncomment the banner directive and modify the banner file, if
+# necessary, to output its contents to standard error (stderr)
+# for ssh clients whose commands are disallowed and not executed.
+#
+# banner /etc/sshdo.banner
+
+# Change which characters are matched by hash characters ("#")
+# in shell commands in authorization directives, if necessary.
+# The default is "digits".
+#
+# match exact
+# match digits
+# match hexdigits
+
+# Turn on training mode to allow but log unexpected commands either
+# for all users and keys (i.e. "training") or for particular users
+# and keys (e.g. "training user1 user2/label +group3 -user3").
+#
+# training
+
+# Add command authorization directives here or in /etc/sshdoers.d/*
+# (e.g. "user1 user2/label +group3 -user3: cmd arg").
+
