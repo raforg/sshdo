@@ -1,6 +1,6 @@
 # sshdo - controls which commands may be executed via incoming ssh
 #
-# Copyright (C) 2018 raf <raf@raf.org>
+# Copyright (C) 2018, 2020 raf <raf@raf.org>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,10 +15,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see https://www.gnu.org/licenses/.
 #
-# 20180808 raf <raf@raf.org>
+# 20200101 raf <raf@raf.org>
 
 NAME := sshdo
-VERSION := 0.1
+VERSION := 1.0
 
 DESTDIR :=
 PREFIX := $(DESTDIR)/usr
@@ -105,7 +105,7 @@ dist-html: dist html
 	mkdir $(NAME)-$(VERSION)-html
 	mkdir $(NAME)-$(VERSION)-html/manpages
 	mkdir $(NAME)-$(VERSION)-html/download
-	cp index.html README.md $(NAME)-$(VERSION)-html
+	cp index.html README.md INSTALL COPYING CHANGELOG $(NAME)-$(VERSION)-html
 	perl -pi -e 's/TIMESTAMP/'"`date`"'/; s/SHA256 XXX/SHA256 '`shasum -a 256 ../$(NAME)-$(VERSION).tar.gz | awk '{ print $$1 }'`/ $(NAME)-$(VERSION)-html/index.html
 	cp sshdo.8.html sshdoers.5.html $(NAME)-$(VERSION)-html/manpages
 	cp ../$(NAME)-$(VERSION).tar.gz $(NAME)-$(VERSION)-html/download

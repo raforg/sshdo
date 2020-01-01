@@ -69,10 +69,10 @@ This makes it possible to use a single authorized key for any number of
 commands and still prevent its use for any other purpose.
 </p>
 <p>
-You will need to identify the commands that need to be allowed by each user
-and authorized key. To make this easy, <em>sshdo</em> can be put into
-<em>training</em> mode where it will allow all commands to execute and log
-them.
+You will need to identify which commands need to be allowed by each user and
+authorized key. To make this easy, <em>sshdo</em> can be put into
+<em>training</em> mode where it will allow (and log) the exeution of all
+commands.
 </p>
 <p>
 After some time, <em>sshdo</em> can then <em>learn</em> from the logs and
@@ -90,19 +90,34 @@ can help to maintain strict least privilege.
 </p>
 <h2><a name="supported_platforms">Supported Platforms</a></h2>
 <p>
-<em>sshdo</em> is written in Python2 and should run on most systems. It
-assumes POSIX and an <em>sshd</em> server and a <em>syslog</em>-compatible
-logging ssystem.
+<em>sshdo</em> is written in <em>Python</em> (2 or 3) and should run on most
+systems. It assumes POSIX and an <em>sshd</em> server and a
+<em>syslog</em>-compatible logging system.
 </p>
 <h2><a name="documentation">Documentation</a></h2>
 <p>
-There is a README file and two manual pages:
+There is a README file etc., and two manual pages:
 </p>
 <table>
 	<tr valign="top">
 		<td align="right"><a href="README.md">README.md</a></td>
 		<td>-</td>
-		<td>Description, Requirements, Install, Copying, History</td>
+		<td>Description</td>
+	</tr>
+	<tr valign="top">
+		<td align="right"><a href="INSTALL">INSTALL</a></td>
+		<td>-</td>
+		<td>Installation, Requirements</td>
+	</tr>
+	<tr valign="top">
+		<td align="right"><a href="COPYING">COPYING</a></td>
+		<td>-</td>
+		<td>Licence information</td>
+	</tr>
+	<tr valign="top">
+		<td align="right"><a href="CHANGELOG">CHANGELOG</a></td>
+		<td>-</td>
+		<td>History</td>
 	</tr>
 	<tr valign="top">
 		<td align="right"><a href="manpages/sshdo.8.html"><code>sshdo(8)</code></a></td>
@@ -122,10 +137,21 @@ There is a README file and two manual pages:
 			Latest:
 		</td>
 		<td align="left">
-			<a href="download/sshdo-0.1.tar.gz"><code>sshdo-0.1.tar.gz</code></a>
+			<a href="download/sshdo-1.0.tar.gz"><code>sshdo-1.0.tar.gz</code></a>
 		</td>
 		<td align="left">
 			(<code>SHA256 XXX</code>)
+		</td>
+	</tr>
+	<tr valign="top">
+		<td align="right">
+			Previous:
+		</td>
+		<td align="left">
+			<a href="download/sshdo-0.1.tar.gz"><code>sshdo-0.1.tar.gz</code></a>
+		</td>
+		<td align="left">
+			(<code>SHA256 6f0e210db84473b3c459c13c75843a0ee28751b6e342ae18bccf8dc840400213</code>)
 		</td>
 	</tr>
 </table>

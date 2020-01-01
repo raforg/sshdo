@@ -2,7 +2,7 @@
 
 # sshdo - controls which commands may be executed via incoming ssh
 #
-# Copyright (C) 2018 raf <raf@raf.org>
+# Copyright (C) 2018, 2020 raf <raf@raf.org>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,15 +17,16 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see https://www.gnu.org/licenses/.
 #
-# 20180808 raf <raf@raf.org>
+# 20200101 raf <raf@raf.org>
 
-from __future__ import nested_scopes, generators, with_statement, print_function
-import os, sys, re, getopt, syslog, pwd, grp, glob, gzip, copy, operator
+from __future__ import print_function
+import os, sys, re, getopt, syslog, pwd, grp, glob, gzip, copy, operator, functools
+py2 = sys.version_info.major == 2
 none = None
 
 prog_name = 'sshdo'
-prog_version = '0.1'
-prog_date = '20180808'
+prog_version = '1.0'
+prog_date = '20200101'
 prog_author = 'raf <raf@raf.org>'
 prog_url = 'http://raf.org/sshdo/'
 
@@ -35,7 +36,7 @@ default_match = 'digits'
 syslog_facility_map = dict(auth=syslog.LOG_AUTH, daemon=syslog.LOG_DAEMON, user=syslog.LOG_USER, local0=syslog.LOG_LOCAL0, local1=syslog.LOG_LOCAL1, local2=syslog.LOG_LOCAL2, local3=syslog.LOG_LOCAL3, local4=syslog.LOG_LOCAL4, local5=syslog.LOG_LOCAL5, local6=syslog.LOG_LOCAL6, local7=syslog.LOG_LOCAL7)
 
 def main():
-	'''Parse the command line, then allow, disallow, train, check, learn or unlearn.'''
+	'''Parse the command line. Allow, disallow, train, check, learn or unlearn.'''
 	config_fname = os.environ.get('SSHDO_CONFIG', default_config_fname)
 	do_check = do_learn = do_unlearn = do_accepting = 0
 	try:
@@ -75,9 +76,9 @@ def main():
 			print('Author: %s' % prog_author)
 			print('URL: %s' % prog_url)
 			print('')
-			print('Copyright (C) 2018 %s' % prog_author)
+			print('Copyright (C) 2018, 2020 %s' % prog_author)
 			print('')
-			print('This is free software released under the terms of the GPL:')
+			print('This is free software released under the terms of the GPLv2+:')
 			print('')
 			print('  http://www.gnu.org/copyleft/gpl.html')
 			print('')
@@ -141,7 +142,7 @@ def sshdo(config_fname, label):
 		logmsg(config, syslog.LOG_ERR, 'disallowed', labelf(label), commandf(ssh_cmd))
 		if 'banner:' in config:
 			try:
-				with open(config['banner:'], 'r') as f:
+				with open(config['banner:']) as f:
 					sys.stderr.write(f.read())
 			except IOError as e:
 				logmsg(config, syslog.LOG_ERR, 'configerror', filenamef(config['banner:']), errorf(e))
@@ -161,14 +162,14 @@ def sshdo_log_messages(config, filenames):
 	'''Scan the log files, find and yield sshdo log messages.'''
 	# Get the configured or default log files if not supplied on the command line
 	if not filenames:
-		filenames = reduce(operator.add, [sort(glob.glob(_)) if _ != '-' else _ for _ in split('\s+', config['logfiles:'] if 'logfiles:' in config else default_logfiles)])
+		filenames = functools.reduce(operator.add, [sort(glob.glob(_)) if _ != '-' else _ for _ in split('\s+', config['logfiles:'] if 'logfiles:' in config else default_logfiles)])
 	if not filenames:
 		fatal('No log files found: %s' % (config['logfiles:'] if 'logfiles:' in config else default_logfiles))
 	# Yield sshdo log messages
 	for fname in filenames:
 		try:
 			l = 0
-			for line in (sys.stdin if fname == '-' else gzip.open(fname) if fname.endswith('.gz') else open(fname, 'r')):
+			for line in (sys.stdin if fname == '-' else gzip.open(fname) if fname.endswith('.gz') else open(fname)):
 				l += 1
 				# Identify sshdo log messages
 				if not ' %s[' % prog_name in line and not ' %s:' % prog_name in line:
@@ -188,7 +189,7 @@ def learn(config_fname, filenames, accepting):
 	directives to allow them. Disallowed messages result in commented out directives.'''
 	# Load the current configuration
 	config = load_config(config_fname)
-	# Examine the log files, building up new configuration directives
+	# Examine log files, building up new configuration directives
 	trained = {} # trained[cmd][user/label] = '#' or ''
 	for fname, l, line, msgtype, user, label, cmd, cfg in sshdo_log_messages(config, filenames):
 		# Skip if related to a different configuration file
@@ -229,7 +230,7 @@ def unlearn(config_fname, filenames, accepting):
 	directives that are no longer needed.'''
 	# Load the current configuration
 	config = load_config(config_fname)
-	# Examine the log files, recording configuration usage
+	# Examine log files, recording configuration usage
 	used = { 'match:': config['match:'] if 'match:' in config else default_match } # used[user][label][cmd] = 1
 	seen = {} # seen[line] = 1
 	for fname, l, line, msgtype, user, label, cmd, cfg in sshdo_log_messages(config, filenames):
@@ -274,11 +275,11 @@ def unlearn(config_fname, filenames, accepting):
 			print('# %s: %s' % (' '.join(sort(users)), encode_conf(cmd)))
 
 def load_config(config_fname, verbose=0):
-	'''Parse the configuration files and return the result which is a nested
-	dict: config[user][label][command]. The user can be preceded by '-' in
-	which case it disallows the command. The user can be preceded by '+' in
-	which case it is a group. The label may be None in which case it applies
-	to all labels and no label.'''
+	'''Parse the configuration files and return a nested dict:
+	config[user][label][command]. The user can be preceded by '-' in which
+	case it disallows the command. The user can be preceded by '+' in which
+	case it is a group. The label may be None in which case it applies to
+	all labels and no label.'''
 	config = {} # config[user][label][cmd] = 1
 	config['config:'] = config_fname
 	errors = 0
@@ -289,10 +290,10 @@ def load_config(config_fname, verbose=0):
 	for fname in [config_fname] + sort(glob.glob(config_fname + '.d/*')):
 		try:
 			l = 0
-			with open(fname, 'r') as f:
+			with open(fname, 'U' if py2 else 'r') as f:
 				for line in f:
 					l += 1
-					# Clean up the input
+					# Clean the input
 					line = s('^\s+', '', s('\s+$', '', s('^\s*#.*$', '', line)))
 					if not line:
 						continue
@@ -330,20 +331,20 @@ def load_config(config_fname, verbose=0):
 									# (d) user/label clashes with -user and -user/label
 									opposite = ('' if username[0] == '-' else '-') + actual_username
 									# Check:
-									#   user against -user
-									#   user/label against -user/label
-									#   -user against user
-									#   -user/label against user/label
+									# user against -user
+									# user/label against -user/label
+									# -user against user
+									# -user/label against user/label
 									if opposite in config and label in config[opposite] and cmd in config[opposite][label]:
 										errors += errormsg('warning: Clashing allow/disallow: %s%s and %s%s: %s [%s line %s]' % (username, ('/' + label) if label else '', opposite, ('/' + label) if label else '', cmd, fname, l))
 									# Check:
-									#   user/label against -user
-									#   -user/label against user
+									# user/label against -user
+									# -user/label against user
 									if label is not none and opposite in config and none in config[opposite] and cmd in config[opposite][none]:
 										errors += errormsg('warning: Clashing allow/disallow: %s/%s and %s: %s [%s line %s]' % (username, label, opposite, cmd, fname, l))
 									# Check:
-									#   user against -user/*
-									#   -user against user/*
+									# user against -user/*
+									# -user against user/*
 									if label is none and opposite in config:
 										for other_label in sort(config[opposite].keys()):
 											if other_label is not none and cmd in config[opposite][other_label]:
@@ -392,20 +393,20 @@ def load_config(config_fname, verbose=0):
 										opposite = ('' if username[0] == '-' else '-') + actual_username
 										training = config['training:']
 										# Check:
-										#   user against -user
-										#   user/label against -user/label
-										#   -user against user
-										#   -user/label against user/label
+										# user against -user
+										# user/label against -user/label
+										# -user against user
+										# -user/label against user/label
 										if opposite in training and label in training[opposite]:
 											errors += errormsg('warning: Clashing training mode: %s%s and %s%s [%s line %s]' % (username, ('/' + label) if label else '', opposite, ('/' + label) if label else '', fname, l))
 										# Check:
-										#   user/label against -user
-										#   -user/label against user
+										# user/label against -user
+										# -user/label against user
 										if label is not none and opposite in training and none in training[opposite]:
 											errors += errormsg('warning: Clashing training mode: %s/%s and %s [%s line %s]' % (username, label, opposite, fname, l))
 										# Check:
-										#   user against -user/*
-										#   -user against user/*
+										# user against -user/*
+										# -user against user/*
 										if label is none and opposite in training:
 											for other_label in sort(training[opposite].keys()):
 												if other_label is not none:
@@ -467,7 +468,7 @@ def load_config(config_fname, verbose=0):
 						errors += errormsg('error: Invalid config: %s [%s line %s]' % (line, fname, l))
 					else:
 						logmsg(config, syslog.LOG_ERR, 'configerror', filenamef(fname), linenumberf(l), linef(line))
-		except IOError as e:
+		except (IOError, UnicodeDecodeError) as e:
 			if verbose:
 				errors += errormsg('error: Failed to read: %s: %s' % (fname, e))
 			else:
@@ -478,7 +479,7 @@ def load_config(config_fname, verbose=0):
 
 def check_auth(config, user, label, cmd):
 	'''Return whether or not the given user/label is allowed to execute the given command.'''
-	# Check explicit exclusions first
+	# Check exclusions first
 	if check_config(config, '-' + user, label, cmd):
 		return 'disallowed'
 	# Check user
@@ -515,12 +516,12 @@ def check_command(config, cmd, user_label_config):
 	'''Compare a command against config that includes # patterns. cmd is the
 	command. user_label_config is a dict with shell command patterns as keys.'''
 	for command_pattern in sort(user_label_config.keys()):
-		# Ignore commands without hash characters because they have already been checked
+		# Ignore commands without hashes because they've already been checked
 		if '#' not in command_pattern:
 			continue
 		# Quote/backslash all meta-characters except "/" and "#"
 		command_pattern = s('([^/\w#])', r'\\\1', command_pattern)
-		# Replace # and ##+ with the corresponding patterns (see hash_pattern)
+		# Replace # and ##+ with corresponding patterns (see hash_pattern)
 		command_pattern = s('(#+)', lambda match: hash_pattern(config, p(match, 1)), command_pattern)
 		# Does the command match this pattern?
 		if m('^' + command_pattern + '$', cmd) is not none:
@@ -528,8 +529,8 @@ def check_command(config, cmd, user_label_config):
 	return 0
 
 def hash_pattern(config, hashes):
-	'''Given a string of hash characters, return the corresponding regular expression fragment
-	for command pattern matching. A single hash matches one hash or one or more digits.
+	'''Given a string of hashes, return the corresponding regular expression fragment
+	for command pattern matching. A single hash matches a hash or one or more digits.
 	Multiple hashes match the same number of hashes and/or digits. For hexdigits matching,
 	match hexadecimal digits. For exact matching, match literally.'''
 	match_style = config['match:'] if 'match:' in config else default_match
@@ -541,7 +542,7 @@ def hash_pattern(config, hashes):
 
 def shell_exec(config, user, label, cmd):
 	'''Replace the current process with the given shell command. If cmd is
-	"<interactive>" then the user's login shell is executed.'''
+	"<interactive>", the user's login shell is executed.'''
 	try:
 		pw_shell = pwd.getpwnam(user).pw_shell
 	except KeyError as e: # Can't happen if invoked by sshd
@@ -603,7 +604,7 @@ def coalesce_commands(method, commands, unlearning=0):
 	number of digits, the pattern has the same number of hash characters to
 	represent the fixed number of digits.
 
-	The resulting data structure, whose keys are the command patterns, has
+	The resulting data structure, whose keys are command patterns, has
 	values that are dicts that combine the values of all matching commands.
 	The values also include an additional key "commands:" whose value is a
 	dict whose keys are the commands keys that match the pattern (the values
@@ -645,7 +646,7 @@ def coalesce_commands(method, commands, unlearning=0):
 	if method == 'exact':
 		return commands
 
-	# For each command, determine if it is similar to any preceding command
+	# For each command, determine if it's similar to any preceding command
 	# that is already in the result. If it isn't, add it to the result. If
 	# it is, combine it with that preceding command in the result,
 	# maintaining the set of possible patterns for each digits segment and
@@ -658,7 +659,7 @@ def coalesce_commands(method, commands, unlearning=0):
 		return [digits, '#'] + (['#' * len(digits)] if len(digits) != 1 else [])
 
 	def isstr(v):
-		return isinstance(v, basestring)
+		return isinstance(v, basestring) if py2 else type(v) in [bytes, str]
 
 	def similar_cmd(asegments, bsegments):
 		'''Return whether or not asegments is similar to bsegments.'''
@@ -703,7 +704,7 @@ def coalesce_commands(method, commands, unlearning=0):
 
 	def best_pattern(patterns):
 		'''Given a list of potential patterns (e.g. ['123', '#', '###']),
-		return the best one.'''
+		return the best.'''
 		return patterns[0] if not patterns[0].startswith('#') else patterns[-1]
 
 	def segments_to_cmd(command_segments):
@@ -722,7 +723,7 @@ def coalesce_commands(method, commands, unlearning=0):
 				nusage[u] = '' if unlearning else '# '
 		return nusage
 
-	# Construct result but as a list rather than a dict because we need the
+	# Construct result as a list rather than a dict because we need the
 	# commands as lists of segments which aren't hashable
 	build = []
 	digit_class = '#0-9' if method == 'digits' else '#0-9a-fA-F'
@@ -730,7 +731,7 @@ def coalesce_commands(method, commands, unlearning=0):
 		# Split the command into segments: literal, digits, literal, ...
 		# Odd-numbered segments are the digits.
 		segments = split('([%s]+)' % digit_class, cmd)
-		# Replace the digits segments with lists of possible replacement patterns
+		# Replace digits segments with lists of possible replacement patterns
 		segments = [segments[i] if i % 2 == 0 else digit_patterns(segments[i]) for i in range(len(segments))]
 		# Look for a similar command already in build, or add it
 		found = 0
@@ -792,7 +793,7 @@ def logmsg(config, priority, msgtype, *msg):
 	syslog.closelog()
 
 def logfield(name, value):
-	'''Return the name and value for inclusion in log messages: e.g. name="value".'''
+	'''Return name and value for use in log messages: e.g. name="value".'''
 	return ('%s="%s"' % (name, encode_log(str(value)))) if value is not none else none
 
 commandf = lambda value: logfield('command', value)
@@ -812,14 +813,13 @@ _re_cache = {}
 def r(pattern, opts=''):
 	'''r(pattern, opts='') -> compiled regular expression object
 
-	Like re.compile() but with more compact options. opts is a string
-	containing any of the characters 'ilmsxu' each of which corresponds to
-	re.I, re.L etc. If the pattern is a unicode object, the option re.U is
-	automatically included.
+	Like re.compile() but with compact options. opts is a string containing
+	any of the characters 'ilmsxu' each corresponding to re.I, re.L etc. If
+	the pattern is a unicode object, the option re.U is automatically included.
 
 	usage: pattern = r('([a-e])\d', 'i')'''
 	# Not a string? Must already be compiled.
-	if not isinstance(pattern, basestring):
+	if not (isinstance(pattern, basestring) if py2 else type(pattern) in [bytes, str]):
 		return pattern
 	# Check the cache
 	key = pattern + '\0\0\0' + opts
@@ -829,7 +829,7 @@ def r(pattern, opts=''):
 	flags, odict = 0, { 'i': re.I, 'l': re.L, 'm': re.M, 's': re.S, 'x': re.X, 'u': re.U }
 	for o in opts:
 		flags |= odict[o]
-	if isinstance(pattern, unicode):
+	if type(pattern) == (unicode if py2 else str):
 		flags |= re.U
 	# Compile, cache and return
 	recomp = re.compile(pattern, flags)
@@ -837,14 +837,12 @@ def r(pattern, opts=''):
 	return recomp
 
 def m(pattern, text, opts='', pos=0, endpos=none):
-	'''m(pattern, text, opts='', pos=0, endpos=none) -> re.MatchObject
+	'''m(pattern, text, opts='', pos=0, endpos=None) -> re.MatchObject
 
 	Like re.search() but with more compact options. See r().
 
 	usage: match = m(pattern, text)'''
-	if endpos is none:
-		endpos = len(text)
-	return r(pattern, opts).search(text, pos, endpos)
+	return r(pattern, opts).search(text, pos, endpos if endpos is not none else len(text))
 
 def s(pattern, rep, text, opts='', count=0):
 	'''s(pattern, rep, text, opts='', count=0) -> str
@@ -855,7 +853,7 @@ def s(pattern, rep, text, opts='', count=0):
 	return r(pattern, opts).sub(rep, text, count)
 
 def p(match, index=none):
-	'''p(match, index=none) -> a string or a list of strings
+	'''p(match, index=None) -> a string or a list of strings
 
 	When index is supplied, it's the same as match.group(index).
 	Otherwise, it's the same as match.groups().
@@ -873,13 +871,15 @@ def split(pattern, text, opts='', maxsplit=0):
 	usage: split(pattern, text)'''
 	return r(pattern, opts).split(text, maxsplit)
 
-def sort(seq, cmp=none, key=none):
-	'''sort(sequence, cmp=none, key=none) -> sequence
+def sort(seq, key=none):
+	'''sort(sequence, key=None) -> sequence
 
 	Sort sequence and then return it.
 
 	usage: print(sort([4, 3, 2, 1]))'''
-	seq.sort(cmp=cmp, key=key)
+	if not py2:
+		seq = list(seq)
+	seq.sort(key=key)
 	return seq
 
 if __name__ == '__main__':

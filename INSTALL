@@ -1,0 +1,26 @@
+# INSTALL
+
+*sshdo* - controls which commands may be executed via incoming ssh
+
+To install sshdo:
+
+    tar xzf sshdo-1.0.tar.gz
+    cd sshdo-1.0
+    make check
+    sudo make install
+
+This installs `/usr/bin/sshdo`, `/etc/sshdoers`, `/etc/sshdoers.d/`,
+`/etc/sshdo.banner` and the manual pages *sshdo(8)* and *sshdoers(5)*.
+
+# REQUIREMENTS
+
+Requires Python 2.6+ or Python 3, Perl's pod2man (for the manual pages),
+an sshd server and a syslog-compatible logging system.
+
+# FROM
+
+    URL: http://raf.org/sshdo/
+    GIT: https://github.com/raforg/sshdo/
+    Date: 20200101
+    Author: raf <raf@raf.org>
+

@@ -1,0 +1,19 @@
+# CHANGELOG
+
+*sshdo* - controls which commands may be executed via incoming ssh
+
+1.0 (20200101)
+
+    - Added support for Python 3.
+
+0.1 (20180808)
+
+    - Initial version.
+
+# FROM
+
+    URL: http://raf.org/sshdo/
+    GIT: https://github.com/raforg/sshdo/
+    Date: 20200101
+    Author: raf <raf@raf.org>
+
