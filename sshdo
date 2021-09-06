@@ -169,7 +169,7 @@ def sshdo_log_messages(config, filenames):
 	for fname in filenames:
 		try:
 			l = 0
-			for line in (sys.stdin if fname == '-' else gzip.open(fname) if fname.endswith('.gz') else open(fname)):
+			for line in (sys.stdin if fname == '-' else gzip.open(fname, mode='rb' if py2 else 'rt') if fname.endswith('.gz') else open(fname)):
 				l += 1
 				# Identify sshdo log messages
 				if not ' %s[' % prog_name in line and not ' %s:' % prog_name in line:
