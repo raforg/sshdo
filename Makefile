@@ -59,6 +59,7 @@ install: man
 	[ -f $(ETCDIR)/$(SSHDOERS) ] || install -o root -g root -m 644 $(SSHDOERS) $(ETCDIR)
 	[ -f $(ETCDIR)/$(SSHDO_BANNER) ] || install -o root -g root -m 644 $(SSHDO_BANNER) $(ETCDIR)
 	install -o root -g root -m 755 $(BIN) $(BINDIR)
+	[ -z "`which python`" -a -n "`which python3`" ] && sed 's/env python$$/env python3/' < $(BIN) > $(BINDIR)/$(BIN)
 	install -o root -g root -m 644 sshdo.8.gz $(MANDIR)/man8
 	install -o root -g root -m 644 sshdoers.5.gz $(MANDIR)/man5
 
