@@ -50,6 +50,8 @@ help:
 	@echo "make diff      - Show differences between source and installed versions"
 
 test:
+	@[ -z "`which python`" -a -n "`which python3`" ] && sed 's/env python$$/env python3/' < ./sshdo > ./sshdo3 && chmod 755 ./sshdo3 && mv ./sshdo3 ./sshdo || true
+	@[ -z "`which python`" -a -n "`which python3`" ] && sed 's/env python$$/env python3/' < ./test_sshdo > ./test_sshdo3 && chmod 755 ./test_sshdo3 && mv ./test_sshdo3 ./test_sshdo || true
 	@./test_sshdo
 
 check: test
@@ -59,7 +61,7 @@ install: man
 	[ -f $(ETCDIR)/$(SSHDOERS) ] || install -o root -g root -m 644 $(SSHDOERS) $(ETCDIR)
 	[ -f $(ETCDIR)/$(SSHDO_BANNER) ] || install -o root -g root -m 644 $(SSHDO_BANNER) $(ETCDIR)
 	install -o root -g root -m 755 $(BIN) $(BINDIR)
-	[ -z "`which python`" -a -n "`which python3`" ] && sed 's/env python$$/env python3/' < $(BIN) > $(BINDIR)/$(BIN)
+	[ -z "`which python`" -a -n "`which python3`" ] && sed 's/env python$$/env python3/' < $(BIN) > $(BINDIR)/$(BIN) || true
 	install -o root -g root -m 644 sshdo.8.gz $(MANDIR)/man8
 	install -o root -g root -m 644 sshdoers.5.gz $(MANDIR)/man5
 
