@@ -19,6 +19,8 @@
 
 NAME := sshdo
 VERSION := 1.0
+DATE := 20200101
+ID := $(NAME)-$(VERSION)
 
 DESTDIR :=
 PREFIX := $(DESTDIR)/usr
@@ -79,18 +81,20 @@ purge: uninstall
 man: sshdo.8.gz sshdoers.5.gz
 
 sshdo.8.gz: sshdo.8.pod
-	$(POD2MAN) --name=sshdo --section=8 --center='System Administration' --release 'sshdo(8)' --quotes=none sshdo.8.pod | $(GZIP) > sshdo.8.gz
+	$(POD2MAN) --name='$(shell echo $(NAME) | tr a-z A-Z)' --section=8 --center='System Administration' --release '$(ID)' --date='$(DATE)' --quotes=none sshdo.8.pod | $(GZIP) > sshdo.8.gz
 
 sshdoers.5.gz: sshdoers.5.pod
-	$(POD2MAN) --name=sshdoers --section=5 --center='File Formats' --release 'sshdoers(5)' --quotes=none sshdoers.5.pod | $(GZIP) > sshdoers.5.gz
+	$(POD2MAN) --name=SSHDOERS --section=5 --center='File Formats' --release '$(ID)' --date='$(DATE)' --quotes=none sshdoers.5.pod | $(GZIP) > sshdoers.5.gz
 
 html: sshdo.8.html sshdoers.5.html
 
 sshdo.8.html: sshdo.8.pod
 	$(POD2HTML) --title 'sshdo(8)' --noindex sshdo.8.pod > sshdo.8.html
+	@rm -f pod2htm*
 
 sshdoers.5.html: sshdoers.5.pod
 	$(POD2HTML) --title 'sshdoers(5)' --noindex sshdoers.5.pod > sshdoers.5.html
+	@rm -f pod2htm*
 
 clean:
 	rm -rf sshdo.8.gz sshdoers.5.gz sshdo.8.html sshdoers.5.html pod2htm* tags .test.sshdoers.d
