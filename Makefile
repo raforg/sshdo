@@ -95,7 +95,7 @@ sshdoers.5.html: sshdoers.5.pod
 clean:
 	rm -rf sshdo.8.gz sshdoers.5.gz sshdo.8.html sshdoers.5.html pod2htm* tags .test.sshdoers.d
 
-dist: clean
+dist: clean man
 	cd .. && \
 	ln -s $(NAME) $(NAME)-$(VERSION) && \
 	tar chzf $(NAME)-$(VERSION).tar.gz --exclude='.git*' --exclude index.html $(NAME)-$(VERSION) && \
