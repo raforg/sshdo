@@ -9,8 +9,29 @@ To install sshdo:
     make check
     sudo make install
 
-This installs `/usr/bin/sshdo`, `/etc/sshdoers`, `/etc/sshdoers.d/`,
-`/etc/sshdo.banner` and the manual pages *sshdo(8)* and *sshdoers(5)*.
+This installs:
+
+    /usr/bin/sshdo
+    /etc/sshdoers
+    /etc/sshdoers.d/
+    /etc/sshdo.banner
+    /usr/share/man/man8/sshdo.8.gz
+    /usr/share/man/man5/sshdoers.5.gz
+
+To install to /usr/local/bin, /usr/local/share/man, and /etc:
+
+    sudo make PREFIX=/usr/local install
+
+To install to /usr/local/bin, /usr/local/share/man, and /usr/local/etc:
+
+    sudo make DESTDIR=/usr/local PREFIX=/usr/local/bin install
+
+But note that the -C or --config option will need to be used when the config
+file is not in /etc (unless sshdo is patched to change the default location).
+
+To uninstall sshdo:
+
+    sudo make uninstall
 
 # REQUIREMENTS
 
