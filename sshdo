@@ -2,7 +2,7 @@
 
 # sshdo - controls which commands may be executed via incoming ssh
 #
-# Copyright (C) 2018, 2020 raf <raf@raf.org>
+# Copyright (C) 2018, 2020-2021 raf <raf@raf.org>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see https://www.gnu.org/licenses/.
 #
-# 20200101 raf <raf@raf.org>
+# 20210909 raf <raf@raf.org>
 
 from __future__ import print_function
 import os, sys, re, getopt, syslog, pwd, grp, glob, gzip, copy, operator, functools
@@ -25,10 +25,10 @@ py2 = sys.version_info.major == 2
 none = None
 
 prog_name = 'sshdo'
-prog_version = '1.0'
-prog_date = '20200101'
+prog_version = '1.1'
+prog_date = '20210909'
 prog_author = 'raf <raf@raf.org>'
-prog_url = 'http://raf.org/sshdo/'
+prog_url = 'https://raf.org/sshdo'
 
 default_config_fname = '/etc/sshdoers'
 default_logfiles = '/var/log/auth.log*'
@@ -36,7 +36,7 @@ default_match = 'digits'
 syslog_facility_map = dict(auth=syslog.LOG_AUTH, daemon=syslog.LOG_DAEMON, user=syslog.LOG_USER, local0=syslog.LOG_LOCAL0, local1=syslog.LOG_LOCAL1, local2=syslog.LOG_LOCAL2, local3=syslog.LOG_LOCAL3, local4=syslog.LOG_LOCAL4, local5=syslog.LOG_LOCAL5, local6=syslog.LOG_LOCAL6, local7=syslog.LOG_LOCAL7)
 
 def main():
-	'''Parse the command line. Allow, disallow, train, check, learn or unlearn.'''
+	'''Parse the command line: allow, disallow, train, check, learn, unlearn'''
 	config_fname = os.environ.get('SSHDO_CONFIG', default_config_fname)
 	do_check = do_learn = do_unlearn = do_accepting = 0
 	try:
@@ -76,11 +76,11 @@ def main():
 			print('Author: %s' % prog_author)
 			print('URL: %s' % prog_url)
 			print('')
-			print('Copyright (C) 2018, 2020 %s' % prog_author)
+			print('Copyright (C) 2018, 2020-2021 %s' % prog_author)
 			print('')
 			print('This is free software released under the terms of the GPLv2+:')
 			print('')
-			print('  http://www.gnu.org/copyleft/gpl.html')
+			print('  https://www.gnu.org/licenses')
 			print('')
 			print('There is no warranty; not even for merchantability or fitness')
 			print('for a particular purpose.')
@@ -113,12 +113,12 @@ def main():
 	sshdo(config_fname, s('[\s:]', '_', ' '.join(args)) if args else none)
 
 def fatal(msg):
-	'''Emit an error message to stderr and exit with status 1.'''
+	'''Emit an error message to stderr and exit with status 1'''
 	print('error: %s' % msg, file=sys.stderr)
 	sys.exit(1)
 
 def sshdo(config_fname, label):
-	'''Allow and execute or disallow $SSH_ORIGINAL_COMMAND. Log everything.'''
+	'''Allow and execute or disallow $SSH_ORIGINAL_COMMAND. Log everything'''
 	# Load the configuration
 	config = load_config(config_fname)
 	# Get the user (trust sshd) and the requested command
@@ -149,7 +149,7 @@ def sshdo(config_fname, label):
 		sys.exit(1)
 
 def check(config_fname, args):
-	'''Check the syntax of any config files given on the command line, or the default.'''
+	'''Check the syntax of any config files given on the command line, or the default'''
 	total_errors = 0
 	for fname in args if args else [config_fname]:
 		config, errors = load_config(fname, verbose=1)
@@ -159,7 +159,7 @@ def check(config_fname, args):
 	return min(total_errors, 255)
 
 def sshdo_log_messages(config, filenames):
-	'''Scan the log files, find and yield sshdo log messages.'''
+	'''Scan the log files, find and yield sshdo log messages'''
 	# Get the configured or default log files if not supplied on the command line
 	if not filenames:
 		filenames = functools.reduce(operator.add, [sort(glob.glob(_)) if _ != '-' else _ for _ in split('\s+', config['logfiles:'] if 'logfiles:' in config else default_logfiles)])
@@ -185,8 +185,8 @@ def sshdo_log_messages(config, filenames):
 			fatal('Failed to read: %s: %s' % (fname, e))
 
 def learn(config_fname, filenames, accepting):
-	'''Scan the log files for sshdo training and disallowed messages and output new configuration
-	directives to allow them. Disallowed messages result in commented out directives.'''
+	'''Scan log files for sshdo training and disallowed messages and output new configuration
+	directives to allow them. Disallowed messages result in commented out directives'''
 	# Load the current configuration
 	config = load_config(config_fname)
 	# Examine log files, building up new configuration directives
@@ -225,9 +225,9 @@ def learn(config_fname, filenames, accepting):
 				print('# %s: %s' % (' '.join(sort(users)), encode_conf(cmd)))
 
 def unlearn(config_fname, filenames, accepting):
-	'''Scan the log files for sshdo messages. Compare them against the current configuration
+	'''Scan log files for sshdo messages. Compare them against the current configuration
 	and output the existing directives that are still needed to allow them. Comment out the
-	directives that are no longer needed.'''
+	directives that are no longer needed'''
 	# Load the current configuration
 	config = load_config(config_fname)
 	# Examine log files, recording configuration usage
@@ -279,7 +279,7 @@ def load_config(config_fname, verbose=0):
 	config[user][label][command]. The user can be preceded by '-' in which
 	case it disallows the command. The user can be preceded by '+' in which
 	case it is a group. The label may be None in which case it applies to
-	all labels and no label.'''
+	all labels and no label'''
 	config = {} # config[user][label][cmd] = 1
 	config['config:'] = config_fname
 	errors = 0
@@ -478,7 +478,7 @@ def load_config(config_fname, verbose=0):
 	return (config, errors) if verbose else config
 
 def check_auth(config, user, label, cmd):
-	'''Return whether or not the given user/label is allowed to execute the given command.'''
+	'''Return whether or not the given user/label is allowed to execute the given command'''
 	# Check exclusions first
 	if check_config(config, '-' + user, label, cmd):
 		return 'disallowed'
@@ -505,7 +505,7 @@ def check_auth(config, user, label, cmd):
 	return 'disallowed'
 
 def check_config(config, user, label, cmd=none):
-	'''Return whether or not config contains user/label and cmd.'''
+	'''Return whether or not config contains user/label and cmd'''
 	if user in config and none in config[user] and (cmd is none or cmd in config[user][none] or check_command(config, cmd, config[user][none])):
 		return 1
 	if label is not none and user in config and label in config[user] and (cmd is none or cmd in config[user][label] or check_command(config, cmd, config[user][label])):
@@ -514,7 +514,7 @@ def check_config(config, user, label, cmd=none):
 
 def check_command(config, cmd, user_label_config):
 	'''Compare a command against config that includes # patterns. cmd is the
-	command. user_label_config is a dict with shell command patterns as keys.'''
+	command. user_label_config is a dict with shell command patterns as keys'''
 	for command_pattern in sort(user_label_config.keys()):
 		# Ignore commands without hashes because they've already been checked
 		if '#' not in command_pattern:
@@ -532,7 +532,7 @@ def hash_pattern(config, hashes):
 	'''Given a string of hashes, return the corresponding regular expression fragment
 	for command pattern matching. A single hash matches a hash or one or more digits.
 	Multiple hashes match the same number of hashes and/or digits. For hexdigits matching,
-	match hexadecimal digits. For exact matching, match literally.'''
+	match hexadecimal digits. For exact matching, match literally'''
 	match_style = config['match:'] if 'match:' in config else default_match
 	if match_style == 'digits':
 		return '(?:#|[0-9]+)' if len(hashes) == 1 else '[#0-9]{%s}' % len(hashes)
@@ -542,7 +542,7 @@ def hash_pattern(config, hashes):
 
 def shell_exec(config, user, label, cmd):
 	'''Replace the current process with the given shell command. If cmd is
-	"<interactive>", the user's login shell is executed.'''
+	"<interactive>", the user's login shell is executed'''
 	try:
 		pw_shell = pwd.getpwnam(user).pw_shell
 	except KeyError as e: # Can't happen if invoked by sshd
@@ -662,7 +662,7 @@ def coalesce_commands(method, commands, unlearning=0):
 		return isinstance(v, basestring) if py2 else type(v) in [bytes, str]
 
 	def similar_cmd(asegments, bsegments):
-		'''Return whether or not asegments is similar to bsegments.'''
+		'''Return whether or not asegments is similar to bsegments'''
 		if len(asegments) != len(bsegments):
 			return 0
 		for i in range(len(asegments)):
@@ -682,7 +682,7 @@ def coalesce_commands(method, commands, unlearning=0):
 	def coalesce_segments(asegments, bsegments):
 		'''Merge asegments into bsegments to represent asegments in addition
 		to any other commands that it already represents. asegments and
-		bsegments must be similar.'''
+		bsegments must be similar'''
 		nsegments = []
 		for i in range(len(asegments)):
 			aseg, bseg = asegments[i], bsegments[i]
@@ -704,16 +704,16 @@ def coalesce_commands(method, commands, unlearning=0):
 
 	def best_pattern(patterns):
 		'''Given a list of potential patterns (e.g. ['123', '#', '###']),
-		return the best.'''
+		return the best'''
 		return patterns[0] if not patterns[0].startswith('#') else patterns[-1]
 
 	def segments_to_cmd(command_segments):
-		'''Return a command pattern based on the given segments.'''
+		'''Return a command pattern based on the given segments'''
 		return ''.join([_ if isstr(_) else best_pattern(_) for _ in command_segments])
 
 	def coalesce_usage(ausage, busage, cmd, command_segments):
 		'''Merge ausage and busage. Where there is a clash between '# ' and
-		'', '# ' wins unless unlearning.'''
+		'', '# ' wins unless unlearning'''
 		nusage = copy.deepcopy(busage)
 		for u in ausage.keys():
 			if u not in nusage:
@@ -756,7 +756,7 @@ def coalesce_commands(method, commands, unlearning=0):
 	return coalesced
 
 def get_groups(username):
-	'''Return a list of the names of all of the given user's groups.'''
+	'''Return a list of the names of all of the given user's groups'''
 	groups = []
 	# Get the primary group
 	try:
@@ -776,7 +776,7 @@ def get_groups(username):
 	return groups
 
 def logmsg(config, priority, msgtype, *msg):
-	'''Emit the given message via syslog to auth.priority by default.'''
+	'''Emit the given message via syslog to auth.priority by default'''
 	facility = syslog_facility_map[config['syslog:']] if 'syslog:' in config else syslog.LOG_AUTH
 	fields = [logfield('type', msgtype)]
 	user = os.environ.get('USER')
@@ -793,7 +793,7 @@ def logmsg(config, priority, msgtype, *msg):
 	syslog.closelog()
 
 def logfield(name, value):
-	'''Return name and value for use in log messages: e.g. name="value".'''
+	'''Return name and value for use in log messages: e.g. name="value"'''
 	return ('%s="%s"' % (name, encode_log(str(value)))) if value is not none else none
 
 commandf = lambda value: logfield('command', value)

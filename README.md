@@ -40,8 +40,8 @@ to maintain strict least privilege.
 
 # FROM
 
-    URL: http://raf.org/sshdo/
-    GIT: https://github.com/raforg/sshdo/
-    Date: 20200101
+    URL: https://raf.org/sshdo
+    GIT: https://github.com/raforg/sshdo
+    Date: 20210909
     Author: raf <raf@raf.org>
 

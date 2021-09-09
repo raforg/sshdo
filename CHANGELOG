@@ -2,6 +2,17 @@
 
 *sshdo* - controls which commands may be executed via incoming ssh
 
+1.1 (20210909)
+
+    - Fix reading gzipped auth.log files in python3 (spotted by github/jbuggie)
+    - Change #! line from python to python3 when installing if necessary
+    - Change #! line from python to python3 when testing if necessary
+    - Add CODE_OF_CONDUCT.md
+    - Change #! line to python3 by default and change to python if necessary
+    - Remove install-time dependency on pod2man (replace with dist-time dependency)
+    - Make manpages more standard
+    - Add INSTALL instructions for other locations
+
 1.0 (20200101)
 
     - Added support for Python 3.
@@ -12,8 +23,8 @@
 
 # FROM
 
-    URL: http://raf.org/sshdo/
-    GIT: https://github.com/raforg/sshdo/
+    URL: https://raf.org/sshdo
+    GIT: https://github.com/raforg/sshdo
     Date: 20200101
     Author: raf <raf@raf.org>
 
