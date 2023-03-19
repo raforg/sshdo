@@ -1,0 +1,9 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: sshdo
+Upstream-Contact: raf <raf@raf.org>
+Source: https://raf.org/sshdo
+
+Files: *
+Copyright: 2018, 2020-2021 raf <raf@raf.org>
+License: GPL-2.0-or-later
+
