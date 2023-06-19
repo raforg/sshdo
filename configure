@@ -1,0 +1,390 @@
+#:!/bin/sh
+#
+# sshdo - controls which commands may be executed via incoming ssh
+# https://raf.org/sshdo
+# https://github.com/raforg/sshdo
+# https://codeberg.org/raforg/sshdo
+#
+# Copyright (C) 2018, 2020-2021 raf <raf@raf.org>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, see <https://www.gnu.org/licenses/>.
+#
+# 20210909 raf <raf@raf.org>
+
+# Show the usage messge for --help
+
+for opt in "$@"
+do
+	case "$opt" in
+		--help|-h)
+			echo "$0 [options]"
+			echo "options:"
+			echo "  --help, -h         - Output this help message, then exit"
+			echo "  --verbose, -v      - Show resulting config diffs (Note: no option bundling)"
+			echo "  --test, -n         - Don't modify anything (Note: no option bundling)"
+			echo "  --destdir=/path    - Override DESTDIR in Makefile for building packages"
+			echo "  --prefix=/path     - Override platform-specific installation prefix"
+			echo "  --etcdir=/path     - Override platform-specific config directory"
+			echo "  --mandir=/path     - Override platform-specific manpage directory"
+			echo "  --macports         - Override default macOS config for macports"
+			echo "  --macports-prefix=/path - Same as --macports with a non-default prefix"
+			echo "  --enable-mangz     - Enable gzipped manpages (default on some systems)"
+			echo "  --disable-mangz    - Disable gzipped manpages (default)"
+			echo "  --default          - Restore Makefile to its defaults (for distribution)"
+			echo ""
+			exit 0
+			;;
+	esac
+done
+
+# Record --verbose and --test early (for editconf)
+
+test=0
+verbose=0
+for opt in "$@"
+do
+	case "$opt" in
+		--verbose|-v)
+			verbose=1;
+			;;
+		--test|-n)
+			test=1;
+			;;
+	esac
+done
+
+# Handle --default (for distribution)
+
+default=0
+for opt in "$@"
+do
+	case "$opt" in
+		--default|default)
+			default=1
+			break
+			;;
+	esac
+done
+
+# Fatal error message (for editconf)
+
+die() { echo "$0: $@" >&2; exit 1; }
+
+# Modify a file (Makefile) with sed (honours --verbose and --test)
+
+editconf()
+{
+	fname="$1"; shift
+	if [ $verbose = 1 ]
+	then
+		sed "$@" < "$fname" > "$fname.tmp"; diff -u "$fname" "$fname.tmp"; rm "$fname.tmp"
+	fi
+	if [ $test = 0 ]
+	then
+		cp -p "$fname" "$fname.tmp" # Preserve file permissions
+		sed "$@" < "$fname" > "$fname.tmp" && mv "$fname.tmp" "$fname" || die "failed to edit $fname"
+	fi
+}
+
+# Operating system preferences (installation locations and manual compression)
+
+case "`uname`" in
+	Linux*) # prefix=/usr/local etcdir=/etc mandir=$prefix/share/man manzip=1
+		echo "Configuring for linux"
+		editconf Makefile \
+			-e 's,^\(PREFIX = \).*$,\1/usr/local,' \
+			-e 's,^\(BINDIR = \).*$,\1$(PREFIX)/bin,' \
+			-e 's,^\(MANDIR = \).*$,\1$(PREFIX)/share/man,' \
+			-e 's,^\(ETCDIR = \).*$,\1/etc,' \
+			-e 's,^\(MAN_GZIP =\) 0,\1 1,'
+		editconf sshdo \
+			-e "s,default_config_fname = '.*',default_config_fname = '/etc/sshdoers'," \
+			-e "s,default_logfiles = '.*',default_logfiles = '/var/log/auth.log*'," \
+			-e "s,/[a-z/][a-z/]*/sshdo ,/usr/local/bin/sshdo ,"
+		editconf sshdoers \
+			-e 's,/[a-z/][a-z/]*/sshdoers,/etc/sshdoers,' \
+			-e 's,"/[a-z/][a-z/]*/sshdo","/usr/local/bin/sshdo",' \
+			-e 's, /[a-z/][a-z/]*/sshdo\.$, /usr/local/bin/sshdo.,' \
+			-e 's,^# logfiles .*$,# logfiles /var/log/auth.log*,' \
+			-e 's,^# banner .*$,# banner /etc/sshdo.banner,'
+		editconf test_sshdo \
+			-e "s,'/var/log/..*','/var/log/auth.log',"
+		;;
+
+	FreeBSD*) # prefix=/usr/local etcdir=$prefix/etc mandir=$prefix/man manzip=1
+		echo "Configuring for freebsd"
+		editconf Makefile \
+			-e 's,^\(PREFIX = \).*$,\1/usr/local,' \
+			-e 's,^\(BINDIR = \).*$,\1$(PREFIX)/bin,' \
+			-e 's,^\(MANDIR = \).*$,\1$(PREFIX)/man,' \
+			-e 's,^\(ETCDIR = \).*$,\1$(PREFIX)/etc,' \
+			-e 's,^\(MAN_GZIP =\) 0,\1 1,'
+		editconf sshdo \
+			-e "s,default_config_fname = '.*',default_config_fname = '/usr/local/etc/sshdoers'," \
+			-e "s,default_logfiles = '.*',default_logfiles = '/var/log/auth.log*'," \
+			-e "s,/[a-z/][a-z/]*/sshdo ,/usr/local/bin/sshdo ,"
+		editconf sshdoers \
+			-e 's,/[a-z/][a-z/]*/sshdoers,/usr/local/etc/sshdoers,' \
+			-e 's,"/[a-z/][a-z/]*/sshdo","/usr/local/bin/sshdo",' \
+			-e 's, /[a-z/][a-z/]*/sshdo\.$, /usr/local/bin/sshdo.,' \
+			-e 's,^# logfiles .*$,# logfiles /var/log/auth.log*,' \
+			-e 's,^# banner .*$,# banner /usr/local/etc/sshdo.banner,'
+		editconf test_sshdo \
+			-e "s,'/var/log/..*','/var/log/auth.log',"
+		;;
+
+	NetBSD*) # prefix=/usr/pkg etcdir=$prefix/etc mandir=$prefix/man manzip=0
+		echo "Configuring for netbsd"
+		editconf Makefile \
+			-e 's,^\(PREFIX = \).*$,\1/usr/pkg,' \
+			-e 's,^\(BINDIR = \).*$,\1$(PREFIX)/bin,' \
+			-e 's,^\(MANDIR = \).*$,\1$(PREFIX)/man,' \
+			-e 's,^\(ETCDIR = \).*$,\1$(PREFIX)/etc,' \
+			-e 's,^\(MAN_GZIP =\) 0,\1 0,'
+		editconf sshdo \
+			-e "s,default_config_fname = '.*',default_config_fname = '/usr/pkg/etc/sshdoers'," \
+			-e "s,default_logfiles = '.*',default_logfiles = '/var/log/authlog*'," \
+			-e "s,/[a-z/][a-z/]*/sshdo ,/usr/pkg/bin/sshdo ,"
+		editconf sshdoers \
+			-e 's,/[a-z/][a-z/]*/sshdoers,/usr/pkg/etc/sshdoers,' \
+			-e 's,"/[a-z/][a-z/]*/sshdo","/usr/pkg/bin/sshdo",' \
+			-e 's, /[a-z/][a-z/]*/sshdo\.$, /usr/pkg/bin/sshdo.,' \
+			-e 's,^# logfiles .*$,# logfiles /var/log/authlog*,' \
+			-e 's,^# banner .*$,# banner /usr/pkg/etc/sshdo.banner,'
+		editconf test_sshdo \
+			-e "s,'/var/log/..*','/var/log/authlog',"
+		;;
+
+	OpenBSD*) # prefix=/usr/local etcdir=$prefix/etc mandir=$prefix/man manzip=0
+		echo "Configuring for openbsd"
+		editconf Makefile \
+			-e 's,^\(PREFIX = \).*$,\1/usr/local,' \
+			-e 's,^\(BINDIR = \).*$,\1$(PREFIX)/bin,' \
+			-e 's,^\(MANDIR = \).*$,\1$(PREFIX)/man,' \
+			-e 's,^\(ETCDIR = \).*$,\1$(PREFIX)/etc,' \
+			-e 's,^\(MAN_GZIP =\) 0,\1 0,'
+		editconf sshdo \
+			-e "s,default_config_fname = '.*',default_config_fname = '/usr/local/etc/sshdoers'," \
+			-e "s,default_logfiles = '.*',default_logfiles = '/var/log/authlog*'," \
+			-e "s,/[a-z/][a-z/]*/sshdo ,/usr/local/bin/sshdo ,"
+		editconf sshdoers \
+			-e 's,/[a-z/][a-z/]*/sshdoers,/usr/local/etc/sshdoers,' \
+			-e 's,"/[a-z/][a-z/]*/sshdo","/usr/local/bin/sshdo",' \
+			-e 's, /[a-z/][a-z/]*/sshdo\.$, /usr/local/bin/sshdo.,' \
+			-e 's,^# logfiles .*$,# logfiles /var/log/authlog*,' \
+			-e 's,^# banner .*$,# banner /usr/local/etc/sshdo.banner,'
+		editconf test_sshdo \
+			-e "s,'/var/log/..*','/var/log/authlog',"
+		;;
+
+	SunOS*) # prefix=/usr/local etcdir=/etc mandir=$prefix/share/man manzip=0
+		echo "Configuring for solaris"
+		editconf Makefile \
+			-e 's,^\(PREFIX = \).*$,\1/usr/local,' \
+			-e 's,^\(BINDIR = \).*$,\1$(PREFIX)/bin,' \
+			-e 's,^\(MANDIR = \).*$,\1$(PREFIX)/share/man,' \
+			-e 's,^\(ETCDIR = \).*$,\1/etc,' \
+			-e 's,^\(MAN_GZIP =\) 0,\1 0,'
+		editconf sshdo \
+			-e "s,default_config_fname = '.*',default_config_fname = '/etc/sshdoers'," \
+			-e "s,default_logfiles = '.*',default_logfiles = '/var/log/authlog*'," \
+			-e "s,/[a-z/][a-z/]*/sshdo ,/usr/local/bin/sshdo ,"
+		editconf sshdoers \
+			-e 's,/[a-z/][a-z/]*/sshdoers,/etc/sshdoers,' \
+			-e 's,"/[a-z/][a-z/]*/sshdo","/usr/local/bin/sshdo",' \
+			-e 's, /[a-z/][a-z/]*/sshdo\.$, /usr/local/bin/sshdo.,' \
+			-e 's,^# logfiles .*$,# logfiles /var/log/authlog*,' \
+			-e 's,^# banner .*$,# banner /etc/sshdo.banner,'
+		editconf test_sshdo \
+			-e "s,'/var/log/..*','/var/log/authlog',"
+		;;
+
+	Darwin*) # prefix=/usr/local etcdir=/etc mandir=$prefix/share/man manzip=0
+		echo "Configuring for macos"
+		editconf Makefile \
+			-e 's,^\(PREFIX = \).*$,\1/usr/local,' \
+			-e 's,^\(BINDIR = \).*$,\1$(PREFIX)/bin,' \
+			-e 's,^\(MANDIR = \).*$,\1$(PREFIX)/share/man,' \
+			-e 's,^\(ETCDIR = \).*$,\1/etc,' \
+			-e 's,^\(MAN_GZIP =\) 0,\1 0,'
+		editconf sshdo \
+			-e "s,default_config_fname = '.*',default_config_fname = '/etc/sshdoers'," \
+			-e "s,default_logfiles = '.*',default_logfiles = '/var/log/system.log*'," \
+			-e "s,/[a-z/][a-z/]*/sshdo ,/usr/local/bin/sshdo ,"
+		editconf sshdoers \
+			-e 's,/[a-z/][a-z/]*/sshdoers,/etc/sshdoers,' \
+			-e 's,"/[a-z/][a-z/]*/sshdo","/usr/local/bin/sshdo",' \
+			-e 's, /[a-z/][a-z/]*/sshdo\.$, /usr/local/bin/sshdo.,' \
+			-e 's,^# logfiles .*$,# logfiles /var/log/system.log*,' \
+			-e 's,^# banner .*$,# banner /etc/sshdo.banner,'
+		editconf test_sshdo \
+			-e "s,'/var/log/..*','/var/log/system.log',"
+		;;
+
+	CYGWIN_NT*) # prefix=/usr/local etcdir=/etc mandir=$prefix/share/man manzip=1
+		echo "Configuring for cygwin"
+		editconf Makefile \
+			-e 's,^\(PREFIX = \).*$,\1/usr/local,' \
+			-e 's,^\(BINDIR = \).*$,\1$(PREFIX)/bin,' \
+			-e 's,^\(MANDIR = \).*$,\1$(PREFIX)/share/man,' \
+			-e 's,^\(ETCDIR = \).*$,\1/etc,' \
+			-e 's,^\(MAN_GZIP =\) 0,\1 1,'
+		editconf sshdo \
+			-e "s,default_config_fname = '.*',default_config_fname = '/etc/sshdoers'," \
+			-e "s,default_logfiles = '.*',default_logfiles = '/var/log/auth.log*'," \
+			-e "s,/[a-z/][a-z/]*/sshdo ,/usr/local/bin/sshdo ,"
+		editconf sshdoers \
+			-e 's,/[a-z/][a-z/]*/sshdoers,/etc/sshdoers,' \
+			-e 's,"/[a-z/][a-z/]*/sshdo","/usr/local/bin/sshdo",' \
+			-e 's, /[a-z/][a-z/]*/sshdo\.$, /usr/local/bin/sshdo.,' \
+			-e 's,^# logfiles .*$,# logfiles /var/log/auth.log*,' \
+			-e 's,^# banner .*$,# banner /etc/sshdo.banner,'
+		editconf test_sshdo \
+			-e "s,'/var/log/..*','/var/log/auth.log',"
+		;;
+
+	*)
+		echo "Unknown platform: Check Makefile for binary/config/manpage installation locations"
+		;;
+esac
+
+if [ $default = 1 ]
+then
+	echo "Configuring --default"
+	editconf Makefile \
+		-e 's,^\(PREFIX = \).*$,\1/usr,' \
+		-e 's,^\(BINDIR = \).*$,\1$(PREFIX)/bin,' \
+		-e 's,^\(MANDIR = \).*$,\1$(PREFIX)/share/man,' \
+		-e 's,^\(ETCDIR = \).*$,\1/etc,' \
+		-e 's,^\(MAN_GZIP =\) 1,\1 0,'
+	editconf sshdo \
+		-e "s,default_config_fname = '.*',default_config_fname = '/etc/sshdoers'," \
+		-e "s,default_logfiles = '.*',default_logfiles = '/var/log/auth.log*'," \
+		-e "s,/[a-z/][a-z/]*/sshdo ,/usr/bin/sshdo ,"
+	editconf sshdoers \
+		-e 's,/[a-z/][a-z/]*/sshdoers,/etc/sshdoers,' \
+		-e 's,"/[a-z/][a-z/]*/sshdo","/usr/bin/sshdo",' \
+		-e 's, /[a-z/][a-z/]*/sshdo\.$, /usr/bin/sshdo.,' \
+		-e 's,^# logfiles .*$,# logfiles /var/log/auth.log*,' \
+		-e 's,^# banner .*$,# banner /etc/sshdo.banner,'
+	editconf test_sshdo \
+		-e "s,'/var/log/..*','/var/log/auth.log',"
+fi
+
+# Process command line options
+
+for opt in "$@"
+do
+	case "$opt" in
+
+		--verbose|-v)
+			;;
+
+		--test|-n)
+			;;
+
+		--default|default)
+			;;
+
+		--destdir=*)
+			echo "Configuring $opt"
+			destdir="${opt#--destdir=}"
+			[ -n "$destdir" ] && destdir=" $destdir"
+			editconf Makefile \
+				-e 's|^\(DESTDIR =\).*$|\1'"$destdir"'|'
+			;;
+
+		--prefix=*)
+			echo "Configuring $opt"
+			prefix="${opt#--prefix=}"
+			[ "$prefix" = "default" ] && prefix=/usr
+			editconf Makefile \
+				-e 's|^\(PREFIX =\).*$|\1 '"$prefix"'|'
+			editconf sshdo \
+				-e "s|/[a-z/][a-z/]*/sshdo |$prefix/bin/sshdo |"
+			editconf sshdoers \
+				-e 's|"/[a-z/][a-z/]*/sshdo"|"'"$prefix"'/bin/sshdo"|' \
+				-e 's| /[a-z/][a-z/]*/sshdo\.$| '"$prefix"'/bin/sshdo.|'
+			;;
+
+		--etcdir=*)
+			echo "Configuring $opt"
+			etcdir="${opt#--etcdir=}"
+			editconf Makefile \
+				-e 's|^\(ETCDIR =\).*$|\1 '"$etcdir"'|'
+			editconf sshdo \
+				-e "s|default_config_fname = '.*'|default_config_fname = '$etcdir/sshdoers'|"
+			editconf sshdoers \
+				-e "s,/[a-z/][a-z/]*/sshdoers,$etcdir/sshdoers," \
+				-e "s,^# banner .*$,# banner $etcdir/sshdo.banner,"
+			;;
+
+		--mandir=*)
+			echo "Configuring $opt"
+			mandir="${opt#--mandir=}"
+			editconf Makefile \
+				-e 's|^\(MANDIR =\).*$|\1 '"$mandir"'|'
+			;;
+
+		--macports|--macports-prefix=*) # default prefix=/opt/local etcdir=$prefix/etc mandir=$prefix/share/man manzip=1
+			echo "Configuring $opt"
+			if [ "x$opt" = x--macports ]
+			then
+				prefix="/opt/local"
+			else
+				prefix="${opt#--macports-prefix=}"
+			fi
+			editconf Makefile \
+				-e 's|^\(PREFIX = \).*$|\1'"$prefix"'|' \
+				-e 's,^\(BINDIR = \).*$,\1$(PREFIX)/bin,' \
+				-e 's,^\(MANDIR = \).*$,\1$(PREFIX)/share/man,' \
+				-e 's,^\(ETCDIR = \).*$,\1$(PREFIX)/etc,' \
+				-e 's,^\(MAN_GZIP =\) 0,\1 1,'
+			editconf sshdo \
+				-e "s|default_config_fname = '.*'|default_config_fname = '$prefix/etc/sshdoers'|" \
+				-e "s|default_logfiles = '.*'|default_logfiles = '/var/log/system.log*'|" \
+				-e "s|/[a-z/][a-z/]*/sshdo |$prefix/bin/sshdo |"
+			editconf sshdoers \
+				-e 's|/[a-z/][a-z/]*/sshdoers|'"$prefix"'/etc/sshdoers|' \
+				-e 's|"/[a-z/][a-z/]*/sshdo"|"'"$prefix"'/bin/sshdo"|' \
+				-e 's| /[a-z/][a-z/]*/sshdo\.$| '"$prefix"'/bin/sshdo.|' \
+				-e 's|^# logfiles .*$|# logfiles /var/log/system.log*|' \
+				-e 's|^# banner .*$|# banner '"$prefix"'/etc/sshdo.banner|'
+			editconf test_sshdo \
+				-e "s,'/var/log/..*','/var/log/system.log',"
+			;;
+
+		--enable-mangz)
+			echo "Configuring $opt"
+			editconf Makefile \
+				-e 's,^\(MAN_GZIP =\).*$,\1 1,'
+			;;
+
+		--disable-mangz)
+			echo "Configuring $opt"
+			editconf Makefile \
+				-e 's,^\(MAN_GZIP =\).*$,\1 0,'
+			;;
+
+		*)
+			echo "$0: Unknown argument: $opt" >&2
+			exit 1
+			;;
+
+	esac
+done
+
+exit 0
+
+# vi:set ts=4 sw=4:

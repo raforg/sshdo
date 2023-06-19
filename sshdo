@@ -21,7 +21,7 @@
 
 from __future__ import print_function
 import os, sys, re, getopt, syslog, pwd, grp, glob, gzip, copy, operator, functools
-py2 = sys.version_info.major == 2
+py2 = sys.version_info[0] == 2
 none = None
 
 prog_name = 'sshdo'
@@ -68,7 +68,7 @@ def main():
 			print('sshdo provides an easily configurable way of controlling which commands')
 			print('may be executed via incoming ssh connections.')
 			print('')
-			print('See the manual pages sshdo(8) and sshdoers(5) for details.')
+			print('See the manual entries sshdo(8) and sshdoers(5) for details.')
 			print('')
 			print('Name: %s' % prog_name)
 			print('Version: %s' % prog_version)
@@ -118,7 +118,7 @@ def fatal(msg):
 	sys.exit(1)
 
 def sshdo(config_fname, label):
-	'''Allow and execute or disallow $SSH_ORIGINAL_COMMAND. Log everything'''
+	'''Allow and execute or disallow $SSH_ORIGINAL_COMMAND (logging everything)'''
 	# Load the configuration
 	config = load_config(config_fname)
 	# Get the user (trust sshd) and the requested command
@@ -186,7 +186,7 @@ def sshdo_log_messages(config, filenames):
 
 def learn(config_fname, filenames, accepting):
 	'''Scan log files for sshdo training and disallowed messages and output new configuration
-	directives to allow them. Disallowed messages result in commented out directives'''
+	directives to allow them. Disallowed messages result in commented out directives.'''
 	# Load the current configuration
 	config = load_config(config_fname)
 	# Examine log files, building up new configuration directives
@@ -227,7 +227,7 @@ def learn(config_fname, filenames, accepting):
 def unlearn(config_fname, filenames, accepting):
 	'''Scan log files for sshdo messages. Compare them against the current configuration
 	and output the existing directives that are still needed to allow them. Comment out the
-	directives that are no longer needed'''
+	directives that are no longer needed.'''
 	# Load the current configuration
 	config = load_config(config_fname)
 	# Examine log files, recording configuration usage
@@ -279,7 +279,7 @@ def load_config(config_fname, verbose=0):
 	config[user][label][command]. The user can be preceded by '-' in which
 	case it disallows the command. The user can be preceded by '+' in which
 	case it is a group. The label may be None in which case it applies to
-	all labels and no label'''
+	all labels and no label.'''
 	config = {} # config[user][label][cmd] = 1
 	config['config:'] = config_fname
 	errors = 0
@@ -514,7 +514,7 @@ def check_config(config, user, label, cmd=none):
 
 def check_command(config, cmd, user_label_config):
 	'''Compare a command against config that includes # patterns. cmd is the
-	command. user_label_config is a dict with shell command patterns as keys'''
+	command. user_label_config is a dict with shell command patterns as keys.'''
 	for command_pattern in sort(user_label_config.keys()):
 		# Ignore commands without hashes because they've already been checked
 		if '#' not in command_pattern:
@@ -532,7 +532,7 @@ def hash_pattern(config, hashes):
 	'''Given a string of hashes, return the corresponding regular expression fragment
 	for command pattern matching. A single hash matches a hash or one or more digits.
 	Multiple hashes match the same number of hashes and/or digits. For hexdigits matching,
-	match hexadecimal digits. For exact matching, match literally'''
+	match hexadecimal digits. For exact matching, match literally.'''
 	match_style = config['match:'] if 'match:' in config else default_match
 	if match_style == 'digits':
 		return '(?:#|[0-9]+)' if len(hashes) == 1 else '[#0-9]{%s}' % len(hashes)
@@ -542,7 +542,7 @@ def hash_pattern(config, hashes):
 
 def shell_exec(config, user, label, cmd):
 	'''Replace the current process with the given shell command. If cmd is
-	"<interactive>", the user's login shell is executed'''
+	"<interactive>", the user's login shell is executed.'''
 	try:
 		pw_shell = pwd.getpwnam(user).pw_shell
 	except KeyError as e: # Can't happen if invoked by sshd

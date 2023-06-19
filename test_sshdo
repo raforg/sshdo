@@ -4638,13 +4638,19 @@ def test_banner():
 	test_error_fname = '.test.error'
 	username = pwd.getpwuid(os.getuid()).pw_name
 	banner_text = 'This is the banner text.\n'
+	# Note: In the macports testing environment, "sudo port test sshdo" sets
+	# the uid to the macports user, but leaves $USER=root. We can't set
+	# USER=macports below because the macports user's login shell is
+	# /usr/bin/false which can't execute the command even if sshdo allows
+	# it. So we let sshdo think that the user is root by leaving $USER=root
+	# and we just add permissions here for root to execute the echo command.
 	test_data = [
 		# Allowed, no banner
-		['%s: echo\n' % username, '', '\n', ''],
+		['root: echo\n%s: echo\n' % username, '', '\n', ''],
 		# Disallowed, no banner
 		['', '', '', ''],
 		# Allowed, banner
-		['%s: echo\nbanner %s\n' % (username, test_banner_fname), banner_text, '\n', ''],
+		['root: echo\n%s: echo\nbanner %s\n' % (username, test_banner_fname), banner_text, '\n', ''],
 		# Disallowed, banner
 		['banner %s\n' % test_banner_fname, banner_text, '', banner_text],
 	]

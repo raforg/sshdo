@@ -17,33 +17,39 @@
 #
 # 20210909 raf <raf@raf.org>
 
-NAME := sshdo
-VERSION := 1.1
-DATE := 20210909
-ID := $(NAME)-$(VERSION)
+NAME = sshdo
+VERSION = 1.1
+DATE = 20210909
+ID = $(NAME)-$(VERSION)
 
-DESTDIR :=
-PREFIX := $(DESTDIR)/usr
-BINDIR := $(PREFIX)/bin
-MANDIR := $(PREFIX)/share/man
-ETCDIR := $(DESTDIR)/etc
+DESTDIR =
+PREFIX = /usr
 
-POD2MAN := pod2man
-POD2HTML := pod2html
-GZIP := gzip -f -9
+ETCDIR = /etc
+BINDIR = $(PREFIX)/bin
+MANDIR = $(PREFIX)/share/man
+MAN_GZIP = 0
 
-BIN := sshdo
-SSHDOERS := sshdoers
-SSHDO_BANNER := sshdo.banner
+DEST_BINDIR = $(DESTDIR)$(BINDIR)
+DEST_MANDIR = $(DESTDIR)$(MANDIR)
+DEST_ETCDIR = $(DESTDIR)$(ETCDIR)
+
+POD2MAN = pod2man
+POD2HTML = pod2html
+GZIP = gzip -f -9
+
+BIN = sshdo
+SSHDOERS = sshdoers
+SSHDO_BANNER = sshdo.banner
 
 help:
 	@echo "make help      - Output this message (default)"
 	@echo "make test      - Run some tests"
 	@echo "make check     - Same as make test"
-	@echo "make install   - Install sshdo, /etc/sshdoers and the manual pages"
-	@echo "make uninstall - Uninstall all installed files except /etc/sshdoers"
+	@echo "make install   - Install sshdo, $(ETCDIR)/sshdoers and the manual pages"
+	@echo "make uninstall - Uninstall all installed files except $(ETCDIR)/sshdoers"
 	@echo "make show      - Output directory listings of installed files"
-	@echo "make purge     - Uninstall all installed files including /etc/sshdoers"
+	@echo "make purge     - Uninstall all installed files including $(ETCDIR)/sshdoers"
 	@echo "make man       - Create the manual pages in the current directory"
 	@echo "make html      - Create the manual pages in the current directory as HTML"
 	@echo "make clean     - Delete the manual pages from the current directory"
@@ -52,39 +58,45 @@ help:
 	@echo "make diff      - Show differences between source and installed versions"
 
 test:
-	@[ -z "`which python3`" -a -n "`which python`" ] && sed 's/env python3$$/env python/' < ./sshdo > ./sshdo2 && chmod 755 ./sshdo2 && mv ./sshdo2 ./sshdo || true
-	@[ -z "`which python3`" -a -n "`which python`" ] && sed 's/env python3$$/env python/' < ./test_sshdo > ./test_sshdo2 && chmod 755 ./test_sshdo2 && mv ./test_sshdo2 ./test_sshdo || true
+	@[ -z "`which python3 2>/dev/null | grep '^/'`" -a -n "`which python 2>/dev/null | grep '^/'`" ] && sed 's/env python3$$/env python/' < ./sshdo > ./sshdo2 && chmod 755 ./sshdo2 && mv ./sshdo2 ./sshdo || true
+	@[ -z "`which python3 2>/dev/null | grep '^/'`" -a -n "`which python 2>/dev/null | grep '^/'`" ] && sed 's/env python3$$/env python/' < ./test_sshdo > ./test_sshdo2 && chmod 755 ./test_sshdo2 && mv ./test_sshdo2 ./test_sshdo || true
 	@./test_sshdo
 
 check: test
 
 install: man
-	[ -d $(ETCDIR)/$(SSHDOERS).d ] || mkdir -m 755 $(ETCDIR)/$(SSHDOERS).d
-	[ -f $(ETCDIR)/$(SSHDOERS) ] || install -o root -g root -m 644 $(SSHDOERS) $(ETCDIR)
-	[ -f $(ETCDIR)/$(SSHDO_BANNER) ] || install -o root -g root -m 644 $(SSHDO_BANNER) $(ETCDIR)
-	install -o root -g root -m 755 $(BIN) $(BINDIR)
-	[ -z "`which python3`" -a -n "`which python`" ] && sed 's/env python3$$/env python/' < $(BIN) > $(BINDIR)/$(BIN) || true
-	install -o root -g root -m 644 sshdo.8.gz $(MANDIR)/man8
-	install -o root -g root -m 644 sshdoers.5.gz $(MANDIR)/man5
+	if [ ! -d $(DEST_ETCDIR)/$(SSHDOERS).d ]; then mkdir -m 755 $(DEST_ETCDIR)/$(SSHDOERS).d; fi
+	if [ ! -f $(DEST_ETCDIR)/$(SSHDOERS) ]; then cp $(SSHDOERS) $(DEST_ETCDIR); chmod 644 $(DEST_ETCDIR)/$(SSHDOERS); fi
+	if [ ! -f $(DEST_ETCDIR)/$(SSHDO_BANNER) ]; then cp $(SSHDO_BANNER) $(DEST_ETCDIR); chmod 644 $(DEST_ETCDIR)/$(SSHDO_BANNER); fi
+	cp $(BIN) $(DEST_BINDIR); chmod 755 $(DEST_BINDIR)/$(BIN)
+	[ -z "`which python3 2>/dev/null | grep '^/'`" -a -n "`which python 2>/dev/null | grep '^/'`" ] && sed 's/env python3$$/env python/' < $(BIN) > $(DEST_BINDIR)/$(BIN) || true
+	[ -d $(DEST_MANDIR)/man8 ] || mkdir -m 755 $(DEST_MANDIR)/man8
+	[ -d $(DEST_MANDIR)/man5 ] || mkdir -m 755 $(DEST_MANDIR)/man5
+	cp sshdo.8 $(DEST_MANDIR)/man8; chmod 644 $(DEST_MANDIR)/man8/sshdo.8
+	cp sshdoers.5 $(DEST_MANDIR)/man5; chmod 644 $(DEST_MANDIR)/man5/sshdoers.5
+	[ "$(MAN_GZIP)" = 0 ] || rm -f $(DEST_MANDIR)/man8/sshdo.8.gz
+	[ "$(MAN_GZIP)" = 0 ] || rm -f $(DEST_MANDIR)/man5/sshdoers.5.gz
+	[ "$(MAN_GZIP)" = 0 ] || $(GZIP) $(DEST_MANDIR)/man8/sshdo.8
+	[ "$(MAN_GZIP)" = 0 ] || $(GZIP) $(DEST_MANDIR)/man5/sshdoers.5
 
 uninstall:
-	rm -f $(BINDIR)/$(BIN)
-	rm -r $(MANDIR)/man8/sshdo.8.gz
-	rm -r $(MANDIR)/man5/sshdoers.5.gz
+	rm -f $(DEST_BINDIR)/$(BIN)
+	rm -f $(DEST_MANDIR)/man8/sshdo.8 $(DEST_MANDIR)/man8/sshdo.8.gz
+	rm -f $(DEST_MANDIR)/man5/sshdoers.5 $(DEST_MANDIR)/man5/sshdoers.5.gz
 
 show:
-	ls -lasp $(ETCDIR)/$(SSHDOERS) $(ETCDIR)/$(SSHDOERS).d $(ETCDIR)/$(SSHDO_BANNER) $(BINDIR)/$(BIN) $(MANDIR)/man8/sshdo.8.gz $(MANDIR)/man5/sshdoers.5.gz
+	ls -lasp $(DEST_ETCDIR)/$(SSHDOERS) $(DEST_ETCDIR)/$(SSHDOERS).d $(DEST_ETCDIR)/$(SSHDO_BANNER) $(DEST_BINDIR)/$(BIN) $(DEST_MANDIR)/man8/sshdo.8* $(DEST_MANDIR)/man5/sshdoers.5*
 
 purge: uninstall
-	rm -rf $(ETCDIR)/$(SSHDOERS) $(ETCDIR)/$(SSHDOERS).d $(ETCDIR)/$(SSHDO_BANNER)
+	rm -rf $(DEST_ETCDIR)/$(SSHDOERS) $(DEST_ETCDIR)/$(SSHDOERS).d $(DEST_ETCDIR)/$(SSHDO_BANNER)
 
-man: sshdo.8.gz sshdoers.5.gz
+man: sshdo.8 sshdoers.5
 
-sshdo.8.gz: sshdo.8.pod
-	$(POD2MAN) --name='$(shell echo $(NAME) | tr a-z A-Z)' --section=8 --center='System Administration' --release '$(ID)' --date='$(DATE)' --quotes=none sshdo.8.pod | $(GZIP) > sshdo.8.gz
+sshdo.8: sshdo.8.pod
+	$(POD2MAN) --name='$(shell echo $(NAME) | tr a-z A-Z)' --section=8 --center='System Administration' --release '$(ID)' --date='$(DATE)' --quotes=none sshdo.8.pod > sshdo.8
 
-sshdoers.5.gz: sshdoers.5.pod
-	$(POD2MAN) --name=SSHDOERS --section=5 --center='File Formats' --release '$(ID)' --date='$(DATE)' --quotes=none sshdoers.5.pod | $(GZIP) > sshdoers.5.gz
+sshdoers.5: sshdoers.5.pod
+	$(POD2MAN) --name=SSHDOERS --section=5 --center='File Formats' --release '$(ID)' --date='$(DATE)' --quotes=none sshdoers.5.pod > sshdoers.5
 
 html: sshdo.8.html sshdoers.5.html
 
@@ -97,9 +109,12 @@ sshdoers.5.html: sshdoers.5.pod
 	@rm -f pod2htm*
 
 clean:
-	rm -rf sshdo.8.gz sshdoers.5.gz sshdo.8.html sshdoers.5.html pod2htm* tags .test.sshdoers.d
+	rm -rf sshdo.8 sshdoers.5 sshdo.8.html sshdoers.5.html pod2htm* tags .test.sshdoers.d
 
-dist: clean man
+default:
+	./configure --default
+
+dist: default clean man
 	cd .. && \
 	ln -s $(NAME) $(NAME)-$(VERSION) && \
 	tar chzf $(NAME)-$(VERSION).tar.gz --exclude='.git*' --exclude index.html $(NAME)-$(VERSION) && \
@@ -108,7 +123,7 @@ dist: clean man
 	ls -alsp $(NAME)
 
 dist-html: dist html
-	-[ -d $(NAME)-$(VERSION)-html ] && rm -r $(NAME)-$(VERSION)-html
+	[ ! -d $(NAME)-$(VERSION)-html ] || rm -r $(NAME)-$(VERSION)-html
 	mkdir $(NAME)-$(VERSION)-html
 	mkdir $(NAME)-$(VERSION)-html/manpages
 	mkdir $(NAME)-$(VERSION)-html/download
@@ -123,6 +138,6 @@ dist-html: dist html
 	rm -r $(NAME)-$(VERSION)-html
 
 diff:
-	-diff -durp /etc/sshdoers sshdoers
-	-diff -durp /usr/bin/sshdo sshdo
+	-diff -durp $(DEST_ETCDIR)/sshdoers sshdoers
+	-diff -durp $(DEST_BINDIR)/sshdo sshdo
 

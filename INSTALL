@@ -6,17 +6,18 @@ To install sshdo:
 
     tar xzf sshdo-1.1.tar.gz
     cd sshdo-1.1
-    make check
+    ./configure
+    make test # optional
     sudo make install
 
-This installs:
+This installs (approximately, depending on the operating system):
 
     /usr/bin/sshdo
     /etc/sshdoers
     /etc/sshdoers.d/
     /etc/sshdo.banner
-    /usr/share/man/man8/sshdo.8.gz
-    /usr/share/man/man5/sshdoers.5.gz
+    /usr/share/man/man8/sshdo.8
+    /usr/share/man/man5/sshdoers.5
 
 To install to /usr/local/bin, /usr/local/share/man, and /etc:
 
@@ -24,10 +25,14 @@ To install to /usr/local/bin, /usr/local/share/man, and /etc:
 
 To install to /usr/local/bin, /usr/local/share/man, and /usr/local/etc:
 
-    sudo make DESTDIR=/usr/local PREFIX=/usr/local/bin install
+    sudo make PREFIX=/usr/local ETCDIR=/usr/local/etc install
 
 But note that the -C or --config option will need to be used when the config
-file is not in /etc (unless sshdo is patched to change the default location).
+file is not in the default directory set by the configure script (unless sshdo
+is modified to change the default location). This isn't necessary if the
+configure script is used to override paths. For more details, see:
+
+    ./configure --help
 
 To uninstall sshdo:
 
