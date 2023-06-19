@@ -2,6 +2,13 @@
 
 *sshdo* - controls which commands may be executed via incoming ssh
 
+1.1.1 (20230619)
+
+    - Replace original June 1991 GPLv2 with February 1999 (post-LGPLv2.1) GPLv2
+    - Add LICENSES/* and .reuse/dep5 (REUSE 3.0 compliant)
+    - Add references to the codeberg repository
+    - Add ./configure for Linux, FreeBSD, OpenBSD, NetBSD, Solaris, macOS, Cygwin
+
 1.1 (20210909)
 
     - Fix reading gzipped auth.log files in python3 (spotted by github/jbuggie)
@@ -26,6 +33,6 @@
     URL: https://raf.org/sshdo
     GIT: https://github.com/raforg/sshdo
     GIT: https://codeberg.org/raforg/sshdo
-    Date: 20210909
+    Date: 20230619
     Author: raf <raf@raf.org>
 

@@ -1,6 +1,6 @@
 # sshdo - controls which commands may be executed via incoming ssh
 #
-# Copyright (C) 2018, 2020-2021 raf <raf@raf.org>
+# Copyright (C) 2018-2023 raf <raf@raf.org>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,11 +15,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see https://www.gnu.org/licenses/.
 #
-# 20210909 raf <raf@raf.org>
+# 20230619 raf <raf@raf.org>
 
 NAME = sshdo
-VERSION = 1.1
-DATE = 20210909
+VERSION = 1.1.1
+DATE = 20230619
 ID = $(NAME)-$(VERSION)
 
 DESTDIR =
@@ -54,7 +54,7 @@ help:
 	@echo "make html      - Create the manual pages in the current directory as HTML"
 	@echo "make clean     - Delete the manual pages from the current directory"
 	@echo "make dist      - Create a distribution tarfile in the parent directory"
-	@echo "make dist-html - Create a HTML distribution tarfile in the parent directory"
+	@echo "make dist-html - dist + Create a HTML site tarfile in the parent directory"
 	@echo "make diff      - Show differences between source and installed versions"
 
 test:
@@ -125,12 +125,12 @@ dist: default clean man
 dist-html: dist html
 	[ ! -d $(NAME)-$(VERSION)-html ] || rm -r $(NAME)-$(VERSION)-html
 	mkdir $(NAME)-$(VERSION)-html
-	mkdir $(NAME)-$(VERSION)-html/manpages
+	mkdir $(NAME)-$(VERSION)-html/manual
 	mkdir $(NAME)-$(VERSION)-html/download
 	mkdir $(NAME)-$(VERSION)-html/sources
 	cp index.html README.md INSTALL COPYING CHANGELOG $(NAME)-$(VERSION)-html
 	perl -pi -e 's/TIMESTAMP/'"`date`"'/; s/SHA256 XXX/SHA256 '`shasum -a 256 ../$(NAME)-$(VERSION).tar.gz | awk '{ print $$1 }'`/ $(NAME)-$(VERSION)-html/index.html
-	cp sshdo.8.html sshdoers.5.html $(NAME)-$(VERSION)-html/manpages
+	cp sshdo.8.html sshdoers.5.html $(NAME)-$(VERSION)-html/manual
 	cp ../$(NAME)-$(VERSION).tar.gz $(NAME)-$(VERSION)-html/download
 	cp sshdo $(NAME)-$(VERSION)-html/sources
 	tar czf ../$(NAME)-$(VERSION)-html.tar.gz $(NAME)-$(VERSION)-html

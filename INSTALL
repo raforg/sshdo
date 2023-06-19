@@ -4,8 +4,8 @@
 
 To install sshdo:
 
-    tar xzf sshdo-1.1.tar.gz
-    cd sshdo-1.1
+    tar xzf sshdo-1.1.1.tar.gz
+    cd sshdo-1.1.1
     ./configure
     make test # optional
     sudo make install
@@ -48,6 +48,6 @@ logging system.
     URL: https://raf.org/sshdo
     GIT: https://github.com/raforg/sshdo
     GIT: https://codeberg.org/raforg/sshdo
-    Date: 20210909
+    Date: 20230619
     Author: raf <raf@raf.org>
 

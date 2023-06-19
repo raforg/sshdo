@@ -2,7 +2,7 @@
 
 # sshdo - controls which commands may be executed via incoming ssh
 #
-# Copyright (C) 2018, 2020-2021 raf <raf@raf.org>
+# Copyright (C) 2018-2023 raf <raf@raf.org>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see https://www.gnu.org/licenses/.
 #
-# 20210909 raf <raf@raf.org>
+# 20230619 raf <raf@raf.org>
 
 from __future__ import print_function
 import os, sys, re, getopt, syslog, pwd, grp, glob, gzip, copy, operator, functools
@@ -25,8 +25,8 @@ py2 = sys.version_info[0] == 2
 none = None
 
 prog_name = 'sshdo'
-prog_version = '1.1'
-prog_date = '20210909'
+prog_version = '1.1.1'
+prog_date = '20230619'
 prog_author = 'raf <raf@raf.org>'
 prog_url = 'https://raf.org/sshdo'
 
@@ -76,7 +76,7 @@ def main():
 			print('Author: %s' % prog_author)
 			print('URL: %s' % prog_url)
 			print('')
-			print('Copyright (C) 2018, 2020-2021 %s' % prog_author)
+			print('Copyright (C) 2018-2023 %s' % prog_author)
 			print('')
 			print('This is free software released under the terms of the GPLv2+:')
 			print('')

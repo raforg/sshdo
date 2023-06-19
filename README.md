@@ -43,6 +43,6 @@ to maintain strict least privilege.
     URL: https://raf.org/sshdo
     GIT: https://github.com/raforg/sshdo
     GIT: https://codeberg.org/raforg/sshdo
-    Date: 20210909
+    Date: 20230619
     Author: raf <raf@raf.org>
 
