@@ -65,11 +65,14 @@ test:
 check: test
 
 install: man
+	if [ ! -d $(DEST_ETCDIR) ]; then mkdir -p -m 755 $(DEST_ETCDIR); fi
 	if [ ! -d $(DEST_ETCDIR)/$(SSHDOERS).d ]; then mkdir -m 755 $(DEST_ETCDIR)/$(SSHDOERS).d; fi
 	if [ ! -f $(DEST_ETCDIR)/$(SSHDOERS) ]; then cp $(SSHDOERS) $(DEST_ETCDIR); chmod 644 $(DEST_ETCDIR)/$(SSHDOERS); fi
 	if [ ! -f $(DEST_ETCDIR)/$(SSHDO_BANNER) ]; then cp $(SSHDO_BANNER) $(DEST_ETCDIR); chmod 644 $(DEST_ETCDIR)/$(SSHDO_BANNER); fi
+	if [ ! -d $(DEST_BINDIR) ]; then mkdir -p -m 755 $(DEST_BINDIR); fi
 	cp $(BIN) $(DEST_BINDIR); chmod 755 $(DEST_BINDIR)/$(BIN)
 	[ -z "`which python3 2>/dev/null | grep '^/'`" -a -n "`which python 2>/dev/null | grep '^/'`" ] && sed 's/env python3$$/env python/' < $(BIN) > $(DEST_BINDIR)/$(BIN) || true
+	if [ ! -d $(DEST_MANDIR) ]; then mkdir -p -m 755 $(DEST_MANDIR); fi
 	[ -d $(DEST_MANDIR)/man8 ] || mkdir -m 755 $(DEST_MANDIR)/man8
 	[ -d $(DEST_MANDIR)/man5 ] || mkdir -m 755 $(DEST_MANDIR)/man5
 	cp sshdo.8 $(DEST_MANDIR)/man8; chmod 644 $(DEST_MANDIR)/man8/sshdo.8
