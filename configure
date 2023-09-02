@@ -41,7 +41,13 @@ do
 			echo "  --macports-prefix=/path - Same as --macports with a non-default prefix"
 			echo "  --enable-mangz     - Enable gzipped manpages (default on some systems)"
 			echo "  --disable-mangz    - Disable gzipped manpages (default)"
+			echo "  --with-python=name - Override default python interpreter (name or /path)"
 			echo "  --default          - Restore Makefile to its defaults (for distribution)"
+			echo ""
+			eco "The --with-python= argument can be the name of a Python2 or Python3 interpreter"
+			echo "to be found in the PATH (e.g., --with-python=python3.11), or it can be an"
+			echo "absolute path to a specific interpreter (e.g., --with-python=/bin/python3)."
+			echo "By default, \"python3\" or \"python\" in the PATH is used."
 			echo ""
 			exit 0
 			;;
@@ -259,6 +265,7 @@ case "`uname`" in
 		;;
 esac
 
+need_python_name=1
 if [ $default = 1 ]
 then
 	echo "Configuring --default"
@@ -280,6 +287,11 @@ then
 		-e 's,^# banner .*$,# banner /etc/sshdo.banner,'
 	editconf test_sshdo \
 		-e "s,'/var/log/..*','/var/log/auth.log',"
+	editconf sshdo \
+		-e 's|^#!/.*$|#!/usr/bin/env python3|'
+	editconf test_sshdo \
+		-e 's|^#!/.*$|#!/usr/bin/env python3|'
+	need_python_name=0
 fi
 
 # Process command line options
@@ -377,6 +389,26 @@ do
 				-e 's,^\(MAN_GZIP =\).*$,\1 0,'
 			;;
 
+		--with-python=*)
+			echo "Configuring $opt"
+			python="${opt#--with-python=}"
+			need_python_name=0
+			case "$python" in
+				/?*)
+					editconf sshdo \
+						-e 's|^#!/usr/bin/env .*$|#!'"$python"'|'
+					editconf test_sshdo \
+						-e 's|^#!/usr/bin/env .*$|#!'"$python"'|'
+					;;
+				*)
+					editconf sshdo \
+						-e 's|^#!/usr/bin/env .*$|#!/usr/bin/env '"$python"'|'
+					editconf test_sshdo \
+						-e 's|^#!/usr/bin/env .*$|#!/usr/bin/env '"$python"'|'
+					;;
+			esac
+			;;
+
 		*)
 			echo "$0: Unknown argument: $opt" >&2
 			exit 1
@@ -384,6 +416,24 @@ do
 
 	esac
 done
+
+# Find out what Python is called here (if not already specified)
+
+if [ $need_python_name = 1 ]
+then
+	for pyname in python3 python
+	do
+		[ -z "`command -v $pyname`" ] && continue
+		editconf sshdo \
+			-e 's|^#!/usr/bin/env .*$|#!/usr/bin/env '"$pyname"'|'
+		editconf test_sshdo \
+			-e 's|^#!/usr/bin/env .*$|#!/usr/bin/env '"$pyname"'|'
+		exit 0
+	done
+	echo "$0: failed to find python3 or python in the PATH."
+	echo "Please install python3 or try again with: --with-python=/path/to/python3"
+	exit 1
+fi
 
 exit 0
 

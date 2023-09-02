@@ -58,8 +58,6 @@ help:
 	@echo "make diff      - Show differences between source and installed versions"
 
 test:
-	@[ -z "`which python3 2>/dev/null | grep '^/'`" -a -n "`which python 2>/dev/null | grep '^/'`" ] && sed 's/env python3$$/env python/' < ./sshdo > ./sshdo2 && chmod 755 ./sshdo2 && mv ./sshdo2 ./sshdo || true
-	@[ -z "`which python3 2>/dev/null | grep '^/'`" -a -n "`which python 2>/dev/null | grep '^/'`" ] && sed 's/env python3$$/env python/' < ./test_sshdo > ./test_sshdo2 && chmod 755 ./test_sshdo2 && mv ./test_sshdo2 ./test_sshdo || true
 	@./test_sshdo
 
 check: test
@@ -71,7 +69,6 @@ install: man
 	if [ ! -f $(DEST_ETCDIR)/$(SSHDO_BANNER) ]; then cp $(SSHDO_BANNER) $(DEST_ETCDIR); chmod 644 $(DEST_ETCDIR)/$(SSHDO_BANNER); fi
 	if [ ! -d $(DEST_BINDIR) ]; then mkdir -p -m 755 $(DEST_BINDIR); fi
 	cp $(BIN) $(DEST_BINDIR); chmod 755 $(DEST_BINDIR)/$(BIN)
-	[ -z "`which python3 2>/dev/null | grep '^/'`" -a -n "`which python 2>/dev/null | grep '^/'`" ] && sed 's/env python3$$/env python/' < $(BIN) > $(DEST_BINDIR)/$(BIN) || true
 	if [ ! -d $(DEST_MANDIR) ]; then mkdir -p -m 755 $(DEST_MANDIR); fi
 	[ -d $(DEST_MANDIR)/man8 ] || mkdir -m 755 $(DEST_MANDIR)/man8
 	[ -d $(DEST_MANDIR)/man5 ] || mkdir -m 755 $(DEST_MANDIR)/man5
