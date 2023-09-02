@@ -1,4 +1,4 @@
-#:!/bin/sh
+#!/bin/sh
 #
 # sshdo - controls which commands may be executed via incoming ssh
 # https://raf.org/sshdo
