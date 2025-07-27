@@ -46,8 +46,8 @@ def main():
 	for opt, arg in opts:
 		if opt in ('-h', '--help'):
 			print('usage:')
-			print(' sshdo [label]               # For use as a forced command')
-			print(' sshdo [options]             # For admin use on the command line')
+			print(' sshdo [label]     # For use as a forced command')
+			print(' sshdo [options]   # For admin use on the command line')
 			print('')
 			print('options:')
 			print(' -h, --help                  - Output the usage message')
@@ -110,10 +110,10 @@ def main():
 		sys.exit(learn(config_fname, args, do_accepting))
 	if do_unlearn:
 		sys.exit(unlearn(config_fname, args, do_accepting))
-	sshdo(config_fname, s('[\s:]', '_', ' '.join(args)) if args else none)
+	sshdo(config_fname, s(r'[\s:]', '_', ' '.join(args)) if args else none)
 
 def fatal(msg):
-	'''Emit an error message to stderr and exit with status 1'''
+	'''Emit error message to stderr and exit with status 1'''
 	print('error: %s' % msg, file=sys.stderr)
 	sys.exit(1)
 
@@ -123,7 +123,7 @@ def sshdo(config_fname, label):
 	config = load_config(config_fname)
 	# Get the user (trust sshd) and the requested command
 	ssh_user = os.environ.get('USER')
-	ssh_cmd = s('^\s+', '', s('\s+$', '', os.environ.get('SSH_ORIGINAL_COMMAND', '<interactive>')))
+	ssh_cmd = s(r'^\s+', '', s(r'\s+$', '', os.environ.get('SSH_ORIGINAL_COMMAND', '<interactive>')))
 	# Check the command and allow and execute it or disallow it
 	auth = check_auth(config, ssh_user, label, ssh_cmd)
 	if auth == 'allowed':
@@ -162,7 +162,7 @@ def sshdo_log_messages(config, filenames):
 	'''Scan the log files, find and yield sshdo log messages'''
 	# Get the configured or default log files if not supplied on the command line
 	if not filenames:
-		filenames = functools.reduce(operator.add, [sort(glob.glob(_)) if _ != '-' else _ for _ in split('\s+', config['logfiles:'] if 'logfiles:' in config else default_logfiles)])
+		filenames = functools.reduce(operator.add, [sort(glob.glob(_)) if _ != '-' else _ for _ in split(r'\s+', config['logfiles:'] if 'logfiles:' in config else default_logfiles)])
 	if not filenames:
 		fatal('No log files found: %s' % (config['logfiles:'] if 'logfiles:' in config else default_logfiles))
 	# Yield sshdo log messages
@@ -294,15 +294,15 @@ def load_config(config_fname, verbose=0):
 				for line in f:
 					l += 1
 					# Clean the input
-					line = s('^\s+', '', s('\s+$', '', s('^\s*#.*$', '', line)))
+					line = s(r'^\s+', '', s(r'\s+$', '', s(r'^\s*#.*$', '', line)))
 					if not line:
 						continue
 					# Parse an authorization directive: user user/label +group/label -user: cmd arg...
-					match = m('^([+-]?[^\s:]+(?:\s+[+-]?[^\s:]+)*)\s*:\s*(.*)$', line)
+					match = m(r'^([+-]?[^\s:]+(?:\s+[+-]?[^\s:]+)*)\s*:\s*(.*)$', line)
 					if match is not none:
 						usernames, cmd = p(match, 1), decode_conf(p(match, 2))
 						# Store the configuration data
-						usernames = split('\s+', usernames)
+						usernames = split(r'\s+', usernames)
 						for username in usernames:
 							# Is there a label?
 							if '/' in username:
@@ -357,10 +357,10 @@ def load_config(config_fname, verbose=0):
 							config[username][label][cmd] = 1
 						continue
 					# Parse a training directive: training user user/label +group/label -user
-					match = m('^training((?:\s+[+-]?[^\s:]+)*)$', line)
+					match = m(r'^training((?:\s+[+-]?[^\s:]+)*)$', line)
 					if match is not none:
 						usernames = p(match, 1)
-						usernames = split('\s+', s('^\s+', '', usernames)) if usernames else []
+						usernames = split(r'\s+', s(r'^\s+', '', usernames)) if usernames else []
 						if usernames or fname == config_fname:
 							if 'training:' not in config:
 								config['training:'] = {}
@@ -420,7 +420,7 @@ def load_config(config_fname, verbose=0):
 							errors += errormsg('warning: Invalid config: %s (only allowed in %s) [%s line %s]' % (line, config_fname, fname, l))
 						continue
 					# Parse a syslog directive
-					match = m('^syslog\s+(%s)$' % '|'.join(syslog_facility_map.keys()), line, 'i')
+					match = m(r'^syslog\s+(%s)$' % '|'.join(syslog_facility_map.keys()), line, 'i')
 					if match is not none:
 						if fname == config_fname:
 							if verbose and 'syslog:' in config:
@@ -430,19 +430,19 @@ def load_config(config_fname, verbose=0):
 							errors += errormsg('warning: Invalid config: %s (only allowed in %s) [%s line %s]' % (line, config_fname, fname, l))
 						continue
 					# Parse a logfiles directive
-					match = m('^logfiles\s+(.+)$', line, 'i')
+					match = m(r'^logfiles\s+(.+)$', line, 'i')
 					if match is not none:
 						if fname == config_fname:
 							config['logfiles:'] = (config['logfiles:'] + ' ' + p(match, 1)) if 'logfiles:' in config else p(match, 1)
 							if verbose:
-								for pattern in split('\s+', config['logfiles:']):
+								for pattern in split(r'\s+', config['logfiles:']):
 									if pattern != '-' and len(glob.glob(pattern)) == 0:
 										errors += errormsg('warning: No such logfiles: %s [%s line %s]' % (pattern, fname, l))
 						elif verbose:
 							errors += errormsg('warning: Invalid config: %s (only allowed in %s) [%s line %s]' % (line, config_fname, fname, l))
 						continue
 					# Parse a match directive
-					match = m('^match\s+(exact|digits|hexdigits)$', line, 'i')
+					match = m(r'^match\s+(exact|digits|hexdigits)$', line, 'i')
 					if match is not none:
 						if fname == config_fname:
 							if verbose and 'match:' in config:
@@ -452,7 +452,7 @@ def load_config(config_fname, verbose=0):
 							errors += errormsg('warning: Invalid config: %s (only allowed in %s) [%s line %s]' % (line, config_fname, fname, l))
 						continue
 					# Parse a banner directive
-					match = m('^banner\s+(.*)$', line, 'i')
+					match = m(r'^banner\s+(.*)$', line, 'i')
 					if match is not none:
 						if fname == config_fname:
 							if verbose and 'banner:' in config:
@@ -520,7 +520,7 @@ def check_command(config, cmd, user_label_config):
 		if '#' not in command_pattern:
 			continue
 		# Quote/backslash all meta-characters except "/" and "#"
-		command_pattern = s('([^/\w#])', r'\\\1', command_pattern)
+		command_pattern = s(r'([^/\w#])', r'\\\1', command_pattern)
 		# Replace # and ##+ with corresponding patterns (see hash_pattern)
 		command_pattern = s('(#+)', lambda match: hash_pattern(config, p(match, 1)), command_pattern)
 		# Does the command match this pattern?
@@ -807,7 +807,7 @@ groupf = lambda value: logfield('group', value)
 encode_log = lambda data: s('([\x00-\x1f"\\\\])', lambda _: '\\' + (p(_, 1) if p(_, 1) in '"\\' else 'x%02x' % ord(p(_, 1))), data)
 decode_log = lambda data: s('\\\\(x[0-9a-fA-F]{2}|["\\\\])', lambda _: p(_, 1) if p(_, 1) in '"\\' else chr(int(p(_, 1)[1:], 16)), data)
 encode_conf = lambda data: data if not m('[\x00-\x1f]', data) else '<binary> ' + s('([\x00-\x1f\\\\])', lambda _: '\\' + (p(_, 1) if p(_, 1) == '\\' else 'x%02x' % ord(p(_, 1))), data)
-decode_conf = lambda data: data if not data.startswith('<binary>') else s('\\\\(x[0-9a-fA-F]{2}|[\\\\])', lambda _: p(_, 1) if p(_, 1) in '"\\' else chr(int(p(_, 1)[1:], 16)), s('^<binary>\s*', '', data))
+decode_conf = lambda data: data if not data.startswith('<binary>') else s('\\\\(x[0-9a-fA-F]{2}|[\\\\])', lambda _: p(_, 1) if p(_, 1) in '"\\' else chr(int(p(_, 1)[1:], 16)), s(r'^<binary>\s*', '', data))
 
 _re_cache = {}
 def r(pattern, opts=''):
@@ -817,7 +817,7 @@ def r(pattern, opts=''):
 	any of the characters 'ilmsxu' each corresponding to re.I, re.L etc. If
 	the pattern is a unicode object, the option re.U is automatically included.
 
-	usage: pattern = r('([a-e])\d', 'i')'''
+	usage: pattern = r(r'([a-e])\\d', 'i')'''
 	# Not a string? Must already be compiled.
 	if not (isinstance(pattern, basestring) if py2 else type(pattern) in [bytes, str]):
 		return pattern
@@ -849,7 +849,7 @@ def s(pattern, rep, text, opts='', count=0):
 
 	Alias for re.sub().
 
-	usage: text = s('\s+', ' ', text)'''
+	usage: text = s(r'\\s+', ' ', text)'''
 	return r(pattern, opts).sub(rep, text, count)
 
 def p(match, index=none):

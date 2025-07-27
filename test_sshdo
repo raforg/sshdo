@@ -957,8 +957,8 @@ def test_options():
 		['-w', '', 'error: option -w not recognized\n'],
 		['--wrong', '', 'error: option --wrong not recognized\n'],
 
-		['-h', 'usage:\n %s [label]               # For use as a forced command\n' % sshdo.prog_name, ''],
-		['--help', 'usage:\n %s [label]               # For use as a forced command\n' % sshdo.prog_name, ''],
+		['-h', 'usage:\n %s [label]     # For use as a forced command\n' % sshdo.prog_name, ''],
+		['--help', 'usage:\n %s [label]     # For use as a forced command\n' % sshdo.prog_name, ''],
 
 		['-V', '%s-%s\n' % (sshdo.prog_name, sshdo.prog_version), ''],
 		['--version', '%s-%s\n' % (sshdo.prog_name, sshdo.prog_version), ''],
